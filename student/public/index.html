@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 PC 관제 대시보드</title>
+<style>
+:root {
+  --bg: #f4f6fa; --panel: #ffffff; --line: #d9dfe9; --text: #1b2330; --muted: #5b6678;
+  --ok: #0f7a4f; --ok-bg: #e2f5ec; --warn: #9a5b00; --warn-bg: #fff1d6; --unk: #4a5568; --unk-bg: #e8ebf1;
+  --accent: #4b3fd1; --focus: #4b3fd1;
+}
+:root[data-theme="dark"] {
+  --bg: #0e1220; --panel: #171d30; --line: #2a3350; --text: #e8ecf6; --muted: #9aa5bd;
+  --ok: #5fe0a8; --ok-bg: #12382b; --warn: #ffc15e; --warn-bg: #3e2f0f; --unk: #b4bdd0; --unk-bg: #262e45;
+  --accent: #a99cff; --focus: #a99cff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1220; --panel: #171d30; --line: #2a3350; --text: #e8ecf6; --muted: #9aa5bd;
+    --ok: #5fe0a8; --ok-bg: #12382b; --warn: #ffc15e; --warn-bg: #3e2f0f; --unk: #b4bdd0; --unk-bg: #262e45;
+    --accent: #a99cff; --focus: #a99cff;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 16px; margin: 0 0 10px; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.badge { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 13px; background: var(--panel); color: var(--muted); }
+.badge.demo { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); font-weight: 700; }
+button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px; padding: 6px 12px; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
+:root[data-theme="dark"] button.primary { color: #10131f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #10131f; } }
+button:disabled { opacity: .6; cursor: progress; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.summary strong { font-size: 18px; }
+.muted { color: var(--muted); font-size: 13px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-left-width: 6px; border-radius: 12px; padding: 12px; }
+.card .label { color: var(--muted); font-size: 13px; }
+.card .val { font-size: 20px; font-weight: 700; margin: 2px 0; }
+.card .hint { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.tag { display: inline-block; border-radius: 6px; padding: 1px 8px; font-size: 13px; font-weight: 700; }
+.s-ok { border-left-color: var(--ok); } .tag.s-ok { background: var(--ok-bg); color: var(--ok); }
+.s-warn { border-left-color: var(--warn); } .tag.s-warn { background: var(--warn-bg); color: var(--warn); }
+.s-unknown { border-left-color: var(--unk); } .tag.s-unknown { background: var(--unk-bg); color: var(--unk); }
+.rows { display: grid; gap: 8px; }
+.row { display: grid; grid-template-columns: 150px 1fr; gap: 4px 12px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 6px; border-radius: 10px; }
+.row .t { font-weight: 700; } .row .h { grid-column: 2; font-size: 13px; color: var(--muted); }
+@media (max-width: 560px) { .row { grid-template-columns: 1fr; } .row .h { grid-column: 1; } }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+:root[data-theme="dark"] .tabs button[aria-pressed="true"] { color: #10131f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tabs button[aria-pressed="true"] { color: #10131f; } }
+svg { width: 100%; height: auto; display: block; }
+svg text { fill: var(--muted); font-size: 11px; }
+.log { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; max-height: 340px; overflow: auto; }
+.log li { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); font-size: 14px; }
+.log time { color: var(--muted); min-width: 64px; }
+.empty { color: var(--muted); padding: 8px; }
+.err { color: var(--warn); font-weight: 700; }
+footer { color: var(--muted); font-size: 13px; padding: 4px 2px 24px; }
+label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>내 PC 관제 대시보드</h1>
+    <div class="badges">
+      <span id="modeBadge" class="badge">불러오는 중…</span>
+      <span id="connBadge" class="badge">서버 연결 안 함</span>
+      <span id="saveBadge" class="badge" hidden></span>
+      <button id="themeBtn" type="button" aria-label="화면 색 바꾸기">🌓 색</button>
+    </div>
+  </header>
+
+  <section class="panel summary" aria-live="polite">
+    <div>
+      <strong id="summaryText">아직 조회하지 않았어요</strong>
+      <div class="muted" id="summaryMeta">"다시 조회"를 누르면 지금 상태를 읽어요.</div>
+    </div>
+    <div>
+      <label class="inline"><input type="checkbox" id="autoBox"> 10초마다 자동 조회</label>
+      <button id="checkBtn" class="primary" type="button">다시 조회</button>
+    </div>
+  </section>
+
+  <section class="cards" id="coreCards" aria-label="핵심 상태 카드"></section>
+
+  <section class="panel">
+    <h2>보안 점검 <span class="muted">(읽기만 해요 · Windows 전용 항목)</span></h2>
+    <div class="rows" id="checkRows"></div>
+  </section>
+
+  <section class="panel">
+    <h2>시간에 따른 변화</h2>
+    <div class="tabs" id="metricTabs" role="group" aria-label="그래프 항목"></div>
+    <div id="chart"></div>
+  </section>
+
+  <section class="panel">
+    <h2>최근 기록</h2>
+    <div class="tabs" id="filterTabs" role="group" aria-label="기록 거르기"></div>
+    <ul class="log" id="log"></ul>
+  </section>
+
+  <footer>
+    이 앱은 내 PC 상태를 읽어서 보여 주기만 해요. 막거나 고치지 않고, 설정을 바꾸지 않고, 외부 서버에 연결하지 않아요.
+    기준값은 학습용이며 완성된 보안 제품이 아니에요. 기록에는 숫자·상태·시각만 남아요.
+  </footer>
+</div>
+
+<script>
+'use strict';
+const LABEL = { ok: '정상', warn: '주의', unknown: '확인 불가' };
+const ICON = { ok: '●', warn: '▲', unknown: '?' };
+const CORE = ['cpu', 'memory', 'disk', 'firewall'];
+const CHECKS = ['defender', 'update', 'ports', 'startup'];
+const METRICS = [
+  { id: 'cpu', name: 'CPU 사용률', unit: '%', max: 100, line: 70 },
+  { id: 'memory', name: '메모리 사용률', unit: '%', max: 100, line: 80 },
+  { id: 'disk', name: '디스크 남은 공간', unit: '%', max: 100, line: 15, low: true },
+];
+const state = { entries: [], metric: 'cpu', filter: 'all', mode: 'real', busy: false, error: '' };
+const $ = (id) => document.getElementById(id);
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function fmtTime(iso) {
+  const d = new Date(iso);
+  const same = d.toDateString() === new Date().toDateString();
+  const t = d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return same ? t : `${d.getMonth() + 1}/${d.getDate()} ${t}`;
+}
+function tag(status) { return el('span', `tag s-${status}`, `${ICON[status]} ${LABEL[status]}`); }
+
+function renderCards(entry) {
+  const box = $('coreCards');
+  box.replaceChildren();
+  for (const id of CORE) {
+    const i = entry && entry.items.find((x) => x.id === id);
+    const c = el('div', `card s-${i ? i.status : 'unknown'}`);
+    c.append(el('div', 'label', i ? i.label : { cpu: 'CPU', memory: '메모리', disk: '디스크', firewall: '방화벽' }[id]));
+    c.append(el('div', 'val', i ? i.text : '—'));
+    c.append(i ? tag(i.status) : el('span', 'muted', '아직 조회 전'));
+    if (i && i.hint) c.append(el('div', 'hint', i.hint));
+    box.append(c);
+  }
+}
+function renderChecks(entry) {
+  const box = $('checkRows');
+  box.replaceChildren();
+  for (const id of CHECKS) {
+    const i = entry && entry.items.find((x) => x.id === id);
+    const r = el('div', `row s-${i ? i.status : 'unknown'}`);
+    r.append(el('div', 't', i ? i.label : { defender: 'Windows 보안 실시간 보호', update: 'Windows 업데이트', ports: '열린 포트', startup: '시작프로그램' }[id]));
+    const v = el('div');
+    v.append(i ? tag(i.status) : el('span', 'muted', '아직 조회 전'), document.createTextNode(i ? `  ${i.text === '확인 불가' ? '' : i.text}` : ''));
+    r.append(v);
+    if (i && i.hint) r.append(el('div', 'h', i.hint));
+    box.append(r);
+  }
+}
+function renderSummary(entry) {
+  if (!entry) return;
+  $('summaryText').textContent = entry.summary;
+  const warn = entry.items.filter((i) => i.status === 'warn').length;
+  const unk = entry.items.filter((i) => i.status === 'unknown').length;
+  $('summaryMeta').textContent = `${fmtTime(entry.at)} 조회 · 주의 ${warn}개 · 확인 불가 ${unk}개${entry.mode === 'demo' ? ' · 예제 값' : ''}`;
+}
+
+function renderChart() {
+  const m = METRICS.find((x) => x.id === state.metric);
+  const pts = state.entries
+    .map((e) => ({ at: e.at, v: (e.items.find((i) => i.id === m.id) || {}).value }))
+    .filter((p) => Number.isFinite(p.v))
+    .slice(-30);
+  const box = $('chart');
+  box.replaceChildren();
+  if (pts.length < 2) { box.append(el('div', 'empty', '그래프는 조회가 2번 이상 쌓이면 그려져요. "다시 조회"를 눌러 보세요.')); return; }
+  const W = 720, H = 220, L = 38, R = 10, T = 10, B = 26;
+  const x = (k) => L + (k * (W - L - R)) / (pts.length - 1);
+  const y = (v) => T + (1 - Math.min(Math.max(v, 0), m.max) / m.max) * (H - T - B);
+  const NS = 'http://www.w3.org/2000/svg';
+  const mk = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  const svg = mk('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${m.name} 변화 그래프, 최근 ${pts.length}번 조회` });
+  for (const g of [0, 25, 50, 75, 100]) {
+    svg.append(mk('line', { x1: L, x2: W - R, y1: y(g), y2: y(g), stroke: 'var(--line)', 'stroke-width': 1 }));
+    const t = mk('text', { x: L - 6, y: y(g) + 4, 'text-anchor': 'end' }); t.textContent = `${g}%`; svg.append(t);
+  }
+  svg.append(mk('line', { x1: L, x2: W - R, y1: y(m.line), y2: y(m.line), stroke: 'var(--warn)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }));
+  const lt = mk('text', { x: W - R, y: y(m.line) - 4, 'text-anchor': 'end' }); lt.textContent = m.low ? `${m.line}% 이하면 주의` : `${m.line}% 이상이면 주의`; svg.append(lt);
+  svg.append(mk('polyline', { points: pts.map((p, k) => `${x(k)},${y(p.v)}`).join(' '), fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2.5 }));
+  pts.forEach((p, k) => {
+    const warn = m.low ? p.v <= m.line : p.v >= m.line;
+    const c = mk('circle', { cx: x(k), cy: y(p.v), r: 4, fill: warn ? 'var(--warn)' : 'var(--accent)' });
+    const tt = mk('title', {}); tt.textContent = `${fmtTime(p.at)} · ${Math.round(p.v)}%${warn ? ' (주의)' : ''}`; c.append(tt);
+    svg.append(c);
+  });
+  const a = mk('text', { x: L, y: H - 6 }); a.textContent = fmtTime(pts[0].at); svg.append(a);
+  const b = mk('text', { x: W - R, y: H - 6, 'text-anchor': 'end' }); b.textContent = fmtTime(pts[pts.length - 1].at); svg.append(b);
+  box.append(svg);
+}
+
+function renderLog() {
+  const ul = $('log');
+  ul.replaceChildren();
+  const rows = [];
+  for (const e of [...state.entries].reverse()) {
+    for (const i of e.items) if (state.filter === 'all' || i.status === state.filter) rows.push({ at: e.at, i });
+    if (rows.length >= 60) break;
+  }
+  if (rows.length === 0) {
+    ul.append(el('li', 'empty', state.filter === 'all' ? '아직 기록이 없어요.' : `${LABEL[state.filter]} 기록이 없어요.`));
+    return;
+  }
+  for (const { at, i } of rows.slice(0, 60)) {
+    const li = el('li');
+    li.append(el('time', '', fmtTime(at)), tag(i.status), el('span', '', `${i.label} · ${i.text}`));
+    ul.append(li);
+  }
+}
+
+function tabs(boxId, items, current, onPick) {
+  const box = $(boxId);
+  box.replaceChildren();
+  for (const it of items) {
+    const b = el('button', '', it.name);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(it.id === current));
+    b.addEventListener('click', () => onPick(it.id));
+    box.append(b);
+  }
+}
+function renderTabs() {
+  tabs('metricTabs', METRICS, state.metric, (id) => { state.metric = id; renderTabs(); renderChart(); });
+  tabs('filterTabs', [{ id: 'all', name: '전체' }, { id: 'warn', name: '주의' }, { id: 'unknown', name: '확인 불가' }, { id: 'ok', name: '정상' }], state.filter,
+    (id) => { state.filter = id; renderTabs(); renderLog(); });
+}
+function renderAll() {
+  const last = state.entries[state.entries.length - 1];
+  renderCards(last); renderChecks(last); renderSummary(last); renderChart(); renderLog(); renderTabs();
+}
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(`요청이 거절되었거나 실패했어요 (${r.status})`);
+  return r.json();
+}
+async function check() {
+  if (state.busy) return;
+  state.busy = true; $('checkBtn').disabled = true; $('checkBtn').textContent = '조회 중…';
+  try {
+    const { entry } = await api('/api/check', { method: 'POST' });
+    state.entries.push(entry);
+    state.entries = state.entries.slice(-500);
+    renderAll();
+  } catch (e) {
+    $('summaryMeta').textContent = '';
+    $('summaryMeta').append(el('span', 'err', `조회하지 못했어요: ${e.message}`));
+  } finally {
+    state.busy = false; $('checkBtn').disabled = false; $('checkBtn').textContent = '다시 조회';
+  }
+}
+
+let timer = null;
+$('autoBox').addEventListener('change', (e) => {
+  clearInterval(timer); timer = null;
+  if (e.target.checked) timer = setInterval(check, 10000);
+});
+$('checkBtn').addEventListener('click', check);
+$('themeBtn').addEventListener('click', () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('theme', next); } catch (_) { /* 저장이 막혀도 괜찮아요 */ }
+});
+try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (_) { /* 무시 */ }
+
+(async function init() {
+  try {
+    const meta = await api('/api/meta');
+    state.mode = meta.mode;
+    const b = $('modeBadge');
+    b.textContent = meta.demo ? '예제 (실제 PC 값이 아니에요)' : '실제 PC';
+    if (meta.demo) b.classList.add('demo');
+    $('connBadge').textContent = meta.connection;
+    const saveNote = { memory: '기록: 창을 닫으면 사라져요', temp: '기록: 임시 폴더에 저장' }[meta.storage];
+    if (saveNote) { $('saveBadge').textContent = saveNote; $('saveBadge').hidden = false; }
+    if (meta.platform !== 'win32' && !meta.demo) {
+      $('summaryMeta').textContent = '이 컴퓨터는 Windows가 아니라서 방화벽·보안 점검은 "확인 불가"로 나와요.';
+    }
+    state.entries = (await api('/api/history?limit=100')).entries;
+    renderAll();
+    if (state.entries.length === 0) await check();
+  } catch (e) {
+    $('modeBadge').textContent = '서버와 이어지지 않았어요';
+    $('summaryMeta').textContent = '';
+    $('summaryMeta').append(el('span', 'err', `${e.message} · 터미널에서 서버가 켜져 있는지 확인하세요.`));
+    renderAll();
+  }
+})();
+</script>
+</body>
+</html>

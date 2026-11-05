@@ -1,0 +1,5 @@
+# 조회 기록은 내 PC에만 둡니다
+student/data/
+# 휴대용 Node.js(직접 받아 넣는 폴더)
+student/node/
+node_modules/
