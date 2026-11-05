@@ -80,6 +80,13 @@ export function createDashboard({ demo = false, save = true, dataDir = path.join
       if (req.method === 'GET' && url.pathname === '/api/alerts') {
         return send(res, 200, { mode, ...computeAlerts(store.read(500)) });
       }
+      if (url.pathname === '/api/clear') {
+        if (req.method !== 'POST') return send(res, 405, { error: 'METHOD_NOT_ALLOWED' });
+        const origin = req.headers.origin;
+        if (origin && origin !== `http://${req.headers.host}`) return send(res, 403, { error: 'ORIGIN_NOT_ALLOWED' });
+        store.clear();
+        return send(res, 200, { mode, cleared: true });
+      }
       if (url.pathname === '/api/check') {
         if (req.method !== 'POST') return send(res, 405, { error: 'METHOD_NOT_ALLOWED' });
         const origin = req.headers.origin;

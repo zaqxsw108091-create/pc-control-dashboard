@@ -33,6 +33,9 @@ export function createStore(file) {
       return readAll().slice(-n);
     },
     count: () => readAll().length,
+    clear() {
+      fs.writeFileSync(file, '');
+    },
   };
 }
 
@@ -60,6 +63,9 @@ export function createMemoryStore() {
       return rows.slice(-n);
     },
     count: () => rows.length,
+    clear() {
+      rows = [];
+    },
   };
 }
 

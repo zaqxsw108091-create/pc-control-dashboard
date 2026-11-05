@@ -377,3 +377,43 @@ test('서버: /api/alerts가 조회 기록에서 현재 주의와 알림 기록�
     await new Promise((r) => app.server.close(r));
   }
 });
+
+test('기록 지우기: 저장소 clear와 /api/clear (POST만, 다른 출처 거절)', async () => {
+  const dir = tmp();
+  const st = createStore(path.join(dir, 'h.jsonl'));
+  st.append({ at: 'x', items: [] });
+  assert.equal(st.count(), 1);
+  st.clear();
+  assert.equal(st.count(), 0);
+  const mem = createMemoryStore();
+  mem.append({ a: 1 });
+  mem.clear();
+  assert.equal(mem.count(), 0);
+
+  const app = createDashboard({ demo: true, dataDir: tmp() });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  try {
+    assert.ok(JSON.parse((await call(app.server, 'GET', '/api/history')).body).entries.length > 0);
+    assert.equal((await call(app.server, 'GET', '/api/clear')).status, 405);
+    assert.equal((await call(app.server, 'POST', '/api/clear', { Origin: 'http://evil.example' })).status, 403);
+    assert.equal((await call(app.server, 'POST', '/api/clear', { Host: 'evil.example' })).status, 403);
+    assert.ok(JSON.parse((await call(app.server, 'GET', '/api/history')).body).entries.length > 0, '거절된 요청은 지우지 않음');
+    const r = await call(app.server, 'POST', '/api/clear');
+    assert.equal(r.status, 200);
+    assert.equal(JSON.parse(r.body).cleared, true);
+    assert.equal(JSON.parse((await call(app.server, 'GET', '/api/history')).body).entries.length, 0);
+    const a = JSON.parse((await call(app.server, 'GET', '/api/alerts')).body);
+    assert.deepEqual(a, { mode: 'demo', current: [], events: [], checkedAt: null });
+    assert.equal((await call(app.server, 'POST', '/api/check')).status, 200);
+    assert.equal(JSON.parse((await call(app.server, 'GET', '/api/history')).body).entries.length, 1);
+  } finally {
+    await new Promise((r) => app.server.close(r));
+  }
+});
+
+test('화면: 항상 어두운 화면이 기본 (윈도우 밝은 모드를 따라가지 않음)', () => {
+  const html = fs.readFileSync(path.join('student', 'public', 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /prefers-color-scheme/);
+  assert.match(html, /:root \{\s*color-scheme: dark;/);
+  assert.match(html, /:root\[data-theme="light"\]/);
+});

@@ -6,21 +6,17 @@
 <title>내 PC 관제 대시보드</title>
 <style>
 :root {
-  --bg: #f4f6fa; --panel: #ffffff; --line: #d9dfe9; --text: #1b2330; --muted: #5b6678;
-  --ok: #0f7a4f; --ok-bg: #e2f5ec; --warn: #9a5b00; --warn-bg: #fff1d6; --unk: #4a5568; --unk-bg: #e8ebf1;
-  --accent: #4b3fd1; --on-accent: #ffffff; --focus: #4b3fd1;
-}
-:root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0e1220; --panel: #171d30; --line: #2a3350; --text: #e8ecf6; --muted: #9aa5bd;
   --ok: #5fe0a8; --ok-bg: #12382b; --warn: #ffc15e; --warn-bg: #3e2f0f; --unk: #b4bdd0; --unk-bg: #262e45;
   --accent: #a99cff; --on-accent: #10131f; --focus: #a99cff;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0e1220; --panel: #171d30; --line: #2a3350; --text: #e8ecf6; --muted: #9aa5bd;
-    --ok: #5fe0a8; --ok-bg: #12382b; --warn: #ffc15e; --warn-bg: #3e2f0f; --unk: #b4bdd0; --unk-bg: #262e45;
-    --accent: #a99cff; --on-accent: #10131f; --focus: #a99cff;
-  }
+/* 밝은 화면은 "색" 버튼을 눌렀을 때만 나와요. (윈도우 설정을 따라가지 않아요) */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6fa; --panel: #ffffff; --line: #d9dfe9; --text: #1b2330; --muted: #5b6678;
+  --ok: #0f7a4f; --ok-bg: #e2f5ec; --warn: #9a5b00; --warn-bg: #fff1d6; --unk: #4a5568; --unk-bg: #e8ebf1;
+  --accent: #4b3fd1; --on-accent: #ffffff; --focus: #4b3fd1;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
@@ -129,6 +125,7 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
   <section class="panel">
     <h2>최근 기록</h2>
     <div class="tabs" id="filterTabs" role="group" aria-label="기록 거르기"></div>
+    <div class="tabs"><button id="csvBtn" type="button">기록 내보내기 (CSV)</button><button id="clearBtn" type="button">기록 지우기</button><span class="muted" id="logNote"></span></div>
     <ul class="log" id="log"></ul>
   </section>
 
@@ -389,6 +386,39 @@ async function check() {
   }
 }
 
+function csvCell(v) {
+  let t = String(v ?? '');
+  if (/^[=+\-@]/.test(t)) t = `'${t}`; // 엑셀에서 수식으로 읽히지 않게
+  return `"${t.replace(/"/g, '""')}"`;
+}
+function exportCsv() {
+  if (state.entries.length === 0) { $('logNote').textContent = '내보낼 기록이 아직 없어요.'; return; }
+  const rows = [['시각', '모드', '항목', '상태', '내용', '값']];
+  for (const e of state.entries) {
+    for (const i of e.items) rows.push([new Date(e.at).toLocaleString('ko-KR'), e.mode === 'demo' ? '예제' : '실제', i.label, LABEL[i.status], i.text, i.value ?? '']);
+  }
+  const csv = '\uFEFF' + rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const d = new Date(); const z = (n) => String(n).padStart(2, '0');
+  a.download = `pc-dashboard-log-${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.csv`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('logNote').textContent = `기록 ${state.entries.length}번 조회분을 내보냈어요. 숫자·상태·시각만 들어 있어요.`;
+}
+async function clearHistory() {
+  if (!confirm('조회 기록을 모두 지울까요? 되돌릴 수 없어요.')) return;
+  try {
+    await api('/api/clear', { method: 'POST' });
+    state.entries = [];
+    state.alerts = await api('/api/alerts');
+    renderAll();
+    $('logNote').textContent = '기록을 모두 지웠어요. "다시 조회"를 누르면 새로 쌓여요.';
+  } catch (e) { $('logNote').textContent = `기록을 지우지 못했어요: ${e.message}`; }
+}
+$('csvBtn').addEventListener('click', exportCsv);
+$('clearBtn').addEventListener('click', clearHistory);
+
 let timer = null;
 $('autoBox').addEventListener('change', (e) => {
   clearInterval(timer); timer = null;
@@ -403,7 +433,7 @@ $('notifyBtn').addEventListener('click', async () => {
   else $('notifyNote').textContent = '브라우저에서 알림이 허용되지 않았어요. 화면 안 알림은 그대로 보여요.';
 });
 $('themeBtn').addEventListener('click', () => {
-  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const cur = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
   const next = cur === 'dark' ? 'light' : 'dark';
   document.documentElement.dataset.theme = next;
   try { localStorage.setItem('theme', next); } catch (_) { /* 저장이 막혀도 괜찮아요 */ }
