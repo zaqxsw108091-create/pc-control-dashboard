@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>내 PC 관제 대시보드</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23171d30%27/%3E%3Cpath d=%27M5 17h5l3-8 5 15 3-7h6%27 fill=%27none%27 stroke=%27%235fe0a8%27 stroke-width=%273%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E">
 <style>
 :root {
   color-scheme: dark;
@@ -30,6 +31,20 @@ h2 { font-size: 16px; margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 6px
 button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px; padding: 6px 12px; }
 button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
 button:disabled { opacity: .6; cursor: progress; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+select, input[type="number"] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+input[type="number"] { width: 6.5em; }
+input[aria-invalid="true"] { border-color: var(--warn); }
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 16px; margin: 10px 0; }
+.settings-grid label { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.settings-grid .lbl { font-weight: 700; min-width: 9em; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.stats b { color: var(--text); }
+.noscript { padding: 12px; background: var(--warn-bg); color: var(--warn); border-radius: 8px; margin: 12px; }
+.skip { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--on-accent); padding: 8px 12px; border-radius: 0 0 8px 0; z-index: 9; }
+.skip:focus { left: 0; }
+@media (pointer: coarse) { button, select, input[type="number"] { min-height: 44px; } }
+@media (prefers-reduced-motion: no-preference) { .card, .row { transition: border-color .2s; } }
 button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
 .summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
@@ -48,8 +63,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .s-unknown { border-left-color: var(--unk); } .tag.s-unknown { background: var(--unk-bg); color: var(--unk); }
 .rows { display: grid; gap: 8px; }
 .row { display: grid; grid-template-columns: 215px 1fr; gap: 4px 12px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 6px; border-radius: 10px; }
-.row .t { font-weight: 700; } .row .h { grid-column: 2; font-size: 13px; color: var(--muted); }
-@media (max-width: 560px) { .row { grid-template-columns: 1fr; } .row .h { grid-column: 1; } }
+.row .t { font-weight: 700; } .row .h { grid-column: 2; font-size: 13px; color: var(--muted); } .row .meta { grid-column: 2; margin-top: 0; }
+@media (max-width: 560px) { .row { grid-template-columns: 1fr; } .row .h, .row .meta { grid-column: 1; } }
 .alertbox { border: 2px solid var(--warn); background: var(--warn-bg); }
 .alertbox.clear { border: 1px solid var(--line); background: var(--panel); }
 .alertbox ul, .errbox ul { margin: 6px 0 0; padding-left: 20px; }
@@ -59,6 +74,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 svg { width: 100%; height: auto; display: block; }
+#chart { min-height: 40px; }
 svg text { fill: var(--muted); font-size: 11px; }
 .log { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; max-height: 340px; overflow: auto; }
 .log li { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); font-size: 14px; }
@@ -72,9 +88,11 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
 </style>
 </head>
 <body>
-<div class="wrap">
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<noscript><div class="noscript">이 화면은 JavaScript가 켜져 있어야 동작해요. 브라우저에서 JavaScript를 허용해 주세요.</div></noscript>
+<main class="wrap">
   <header>
-    <h1>내 PC 관제 대시보드</h1>
+    <h1 id="main" tabindex="-1">내 PC 관제 대시보드</h1>
     <div class="badges">
       <span id="modeBadge" class="badge">불러오는 중…</span>
       <span id="connBadge" class="badge">서버 연결 안 함</span>
@@ -83,13 +101,15 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
     </div>
   </header>
 
-  <section class="panel summary" aria-live="polite">
+  <section class="panel summary">
     <div>
-      <strong id="summaryText">아직 조회하지 않았어요</strong>
+      <strong id="summaryText" role="status" aria-live="polite">아직 조회하지 않았어요</strong>
       <div class="muted" id="summaryMeta">"다시 조회"를 누르면 지금 상태를 읽어요.</div>
     </div>
     <div>
-      <label class="inline"><input type="checkbox" id="autoBox"> 10초마다 자동 조회</label>
+      <label class="inline"><input type="checkbox" id="autoBox"> 자동 조회</label>
+      <label class="inline"><span class="muted">간격</span>
+        <select id="autoSec" aria-label="자동 조회 간격"><option value="10">10초</option><option value="30">30초</option><option value="60">1분</option><option value="300">5분</option></select></label>
       <button id="checkBtn" class="primary" type="button">다시 조회</button>
     </div>
   </section>
@@ -120,6 +140,7 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
     <h2>시간에 따른 변화</h2>
     <div class="tabs" id="metricTabs" role="group" aria-label="그래프 항목"></div>
     <div id="chart"></div>
+    <div class="stats" id="chartStats"></div>
   </section>
 
   <section class="panel">
@@ -128,6 +149,19 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
     <div class="tabs"><button id="csvBtn" type="button">기록 내보내기 (CSV)</button><button id="clearBtn" type="button">기록 지우기</button><span class="muted" id="logNote"></span></div>
     <ul class="log" id="log"></ul>
   </section>
+
+  <details class="panel guide" id="settingsBox">
+    <summary>주의 기준 바꾸기 (설정)</summary>
+    <p class="muted">항목이 "주의"가 되는 기준을 내 PC에 맞게 바꿔요. 바꾼 기준은 다음 조회부터 적용되고, 이미 쌓인 기록의 상태는 그대로예요. 학습용 기준이며 공식 보안 기준이 아니에요.</p>
+    <form id="settingsForm" novalidate>
+      <div class="settings-grid" id="settingsGrid"></div>
+      <div class="tabs">
+        <button type="submit" class="primary" id="settingsSave">저장하고 다시 조회</button>
+        <button type="button" id="settingsReset">처음 값으로 되돌리기</button>
+        <span class="muted" id="settingsNote" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+  </details>
 
   <details class="panel guide">
     <summary>화면 읽는 법 (처음이라면 눌러 보세요)</summary>
@@ -138,8 +172,9 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
   <footer>
     이 앱은 내 PC 상태를 읽어서 보여 주기만 해요. 막거나 고치지 않고, 설정을 바꾸지 않고, 외부 서버에 연결하지 않아요.
     기준값은 학습용이며 완성된 보안 제품이 아니에요. 기록에는 숫자·상태·시각만 남아요.
+    <span id="versionNote"></span>
   </footer>
-</div>
+</main>
 
 <script>
 'use strict';
@@ -154,7 +189,8 @@ const METRICS = [
   { id: 'memory', name: '메모리 사용률', max: 100, line: 80 },
   { id: 'disk', name: '디스크 남은 공간', max: 100, line: 15, low: true },
 ];
-const state = { entries: [], alerts: { current: [], events: [] }, sdp: null, metric: 'cpu', filter: 'all', mode: 'real', busy: false, notify: false };
+const state = { entries: [], alerts: { current: [], events: [] }, sdp: null, metric: 'cpu', filter: 'all', mode: 'real', busy: false, notify: false, settings: null };
+const LINE_KEY = { cpu: 'cpuWarn', memory: 'memWarn', disk: 'diskFreeWarn' };
 const $ = (id) => document.getElementById(id);
 
 function el(tag, cls, text) {
@@ -168,6 +204,20 @@ function fmtTime(iso) {
   const same = d.toDateString() === new Date().toDateString();
   const t = d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   return same ? t : `${d.getMonth() + 1}/${d.getDate()} ${t}`;
+}
+function fmtDuration(ms) {
+  if (!Number.isFinite(ms)) return '';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}초`;
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m}분` : `${Math.floor(m / 60)}시간 ${m % 60}분`;
+}
+function ago(iso) {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 5) return '방금';
+  if (s < 60) return `${s}초 전`;
+  const m = Math.floor(s / 60);
+  return m < 60 ? `${m}분 전` : `${Math.floor(m / 60)}시간 전`;
 }
 function tag(status) { return el('span', `tag s-${status}`, `${ICON[status]} ${LABEL[status]}`); }
 function findItem(entry, id) { return entry && entry.items.find((x) => x.id === id); }
@@ -210,7 +260,7 @@ function renderRows(boxId, ids, entry, extra) {
     if (extra && extra[id]) { v.append(document.createTextNode(' '), el('span', 'tag ro', extra[id])); }
     r.append(v);
     if (i && i.hint) r.append(el('div', 'h', i.hint));
-    if (i) { const m = metaLine(entry, i); m.style.gridColumn = '2'; r.append(m); }
+    if (i) r.append(metaLine(entry, i));
     box.append(r);
   }
   return box;
@@ -230,7 +280,7 @@ function renderSummary(entry) {
   $('summaryText').textContent = entry.summary;
   const warn = entry.items.filter((i) => i.status === 'warn').length;
   const unk = entry.items.filter((i) => i.status === 'unknown').length;
-  $('summaryMeta').textContent = `${fmtTime(entry.at)} 조회 · 주의 ${warn}개 · 확인 불가 ${unk}개${entry.mode === 'demo' ? ' · 예제 값' : ''}`;
+  $('summaryMeta').textContent = `${fmtTime(entry.at)} 조회 (${ago(entry.at)}) · 주의 ${warn}개 · 확인 불가 ${unk}개${entry.mode === 'demo' ? ' · 예제 값' : ''}`;
 }
 
 function renderErrBox(entry) {
@@ -275,21 +325,24 @@ function renderAlerts() {
   if (a.events.length === 0) ul.append(el('li', 'empty', '아직 알림 기록이 없어요.'));
   for (const e of a.events.slice(0, 20)) {
     const li = el('li');
-    li.append(el('time', '', fmtTime(e.at)), e.kind === 'start' ? tag('warn') : tag('ok'), el('span', '', `${e.label} · ${e.text} ${e.kind === 'start' ? '(주의 시작)' : '(주의 해소)'}`));
+    li.append(el('time', '', fmtTime(e.at)), e.kind === 'start' ? tag('warn') : tag('ok'), el('span', '', `${e.label} · ${e.text} ${e.kind === 'start' ? '(주의 시작)' : `(주의 해소${Number.isFinite(e.durationMs) ? `, ${fmtDuration(e.durationMs)} 동안 주의` : ''})`}`));
     ul.append(li);
   }
 }
 
 function renderChart() {
-  const m = METRICS.find((x) => x.id === state.metric);
+  const base = METRICS.find((x) => x.id === state.metric);
+  const limit = state.settings && state.settings.thresholds[LINE_KEY[base.id]];
+  const m = { ...base, line: Number.isFinite(limit) ? limit : base.line };
   const pts = state.entries
     .map((e) => ({ at: e.at, v: (findItem(e, m.id) || {}).value }))
     .filter((p) => Number.isFinite(p.v))
     .slice(-30);
   const box = $('chart');
   box.replaceChildren();
+  $('chartStats').replaceChildren();
   if (pts.length < 2) { box.append(el('div', 'empty', '그래프는 조회가 2번 이상 쌓이면 그려져요. "다시 조회"를 눌러 보세요.')); return; }
-  const W = 720, H = 220, L = 38, R = 10, T = 10, B = 26;
+  const W = Math.max(300, Math.min(720, Math.round(box.clientWidth || 720))), H = W < 480 ? 240 : 220, L = 38, R = 10, T = 10, B = 26;
   const x = (k) => L + (k * (W - L - R)) / (pts.length - 1);
   const y = (v) => T + (1 - Math.min(Math.max(v, 0), m.max) / m.max) * (H - T - B);
   const NS = 'http://www.w3.org/2000/svg';
@@ -311,6 +364,11 @@ function renderChart() {
   const a = mk('text', { x: L, y: H - 6 }); a.textContent = fmtTime(pts[0].at); svg.append(a);
   const b = mk('text', { x: W - R, y: H - 6, 'text-anchor': 'end' }); b.textContent = fmtTime(pts[pts.length - 1].at); svg.append(b);
   box.append(svg);
+  const vals = pts.map((p) => p.v);
+  const st = $('chartStats');
+  const add = (k, v) => { const sp = el('span'); sp.append(`${k} `, el('b', '', `${Math.round(v)}%`)); st.append(sp); };
+  add('최근', vals[vals.length - 1]); add('평균', vals.reduce((a, b) => a + b, 0) / vals.length); add('최저', Math.min(...vals)); add('최고', Math.max(...vals));
+  st.append(el('span', '', `최근 ${pts.length}번 조회 기준`));
 }
 
 function renderLog() {
@@ -419,11 +477,76 @@ async function clearHistory() {
 $('csvBtn').addEventListener('click', exportCsv);
 $('clearBtn').addEventListener('click', clearHistory);
 
+let rz = null, lastW = 0;
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { const w = $('chart').clientWidth; if (Math.abs(w - lastW) > 20) { lastW = w; renderChart(); } }, 150); });
+
 let timer = null;
-$('autoBox').addEventListener('change', (e) => {
+function applyAuto() {
   clearInterval(timer); timer = null;
-  if (e.target.checked) timer = setInterval(check, 10000);
+  const on = $('autoBox').checked;
+  if (on) timer = setInterval(check, Number($('autoSec').value) * 1000);
+  try { localStorage.setItem('auto', JSON.stringify({ on, sec: $('autoSec').value })); } catch (_) { /* 저장이 막혀도 괜찮아요 */ }
+}
+$('autoBox').addEventListener('change', applyAuto);
+$('autoSec').addEventListener('change', applyAuto);
+try {
+  const a = JSON.parse(localStorage.getItem('auto') || 'null');
+  if (a && [...$('autoSec').options].some((o) => o.value === String(a.sec))) $('autoSec').value = String(a.sec);
+  if (a && a.on) { $('autoBox').checked = true; applyAuto(); }
+} catch (_) { /* 무시 */ }
+// "방금 / 12초 전" 표시를 1초마다 새로 고쳐요. (조회는 하지 않아요)
+setInterval(() => { const last = state.entries[state.entries.length - 1]; if (last && !state.busy) renderSummary(last); }, 1000);
+
+function renderSettings() {
+  const s = state.settings;
+  if (!s) return;
+  const grid = $('settingsGrid');
+  grid.replaceChildren();
+  for (const f of s.fields) {
+    const lab = el('label');
+    const inp = el('input');
+    inp.type = 'number'; inp.id = `set-${f.key}`; inp.name = f.key; inp.min = f.min; inp.max = f.max; inp.step = 1; inp.inputMode = 'numeric';
+    inp.value = s.thresholds[f.key];
+    inp.setAttribute('aria-describedby', 'settingsNote');
+    lab.append(el('span', 'lbl', f.label), inp, el('span', 'muted', `${f.unit} (${f.min}~${f.max})`));
+    grid.append(lab);
+  }
+}
+async function saveSettings(payload, okText) {
+  const note = $('settingsNote');
+  for (const i of $('settingsGrid').querySelectorAll('input')) i.removeAttribute('aria-invalid');
+  try {
+    const r = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok) {
+      if (data.field && $(`set-${data.field}`)) { $(`set-${data.field}`).setAttribute('aria-invalid', 'true'); $(`set-${data.field}`).focus(); }
+      throw new Error(data.message || `저장하지 못했어요 (${r.status})`);
+    }
+    state.settings = data;
+    renderSettings(); renderChart();
+    note.textContent = okText;
+    await check();
+  } catch (e) { note.textContent = e.message; }
+}
+$('settingsForm').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const payload = {};
+  const inputs = [...$('settingsGrid').querySelectorAll('input')];
+  for (const i of inputs) i.removeAttribute('aria-invalid');
+  // 서버에 보내기 전에 입력칸에서 먼저 확인해요. (서버도 한 번 더 확인해요)
+  for (const f of state.settings.fields) {
+    const i = $(`set-${f.key}`);
+    const n = i.value.trim() === '' ? NaN : Number(i.value);
+    if (!Number.isInteger(n) || n < f.min || n > f.max) {
+      i.setAttribute('aria-invalid', 'true'); i.focus();
+      $('settingsNote').textContent = `${f.label}은(는) ${f.min}~${f.max} 사이의 정수여야 해요.`;
+      return;
+    }
+    payload[f.key] = n;
+  }
+  saveSettings(payload, '저장했어요. 새 기준으로 다시 조회했어요.');
 });
+$('settingsReset').addEventListener('click', () => saveSettings({ reset: true }, '처음 값으로 되돌렸어요.'));
 $('checkBtn').addEventListener('click', check);
 $('notifyBtn').addEventListener('click', async () => {
   if (typeof Notification === 'undefined') { $('notifyNote').textContent = '이 브라우저는 바탕화면 알림을 지원하지 않아요. 화면 안 알림은 그대로 보여요.'; return; }
@@ -444,6 +567,8 @@ try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light'
   try {
     const meta = await api('/api/meta');
     state.mode = meta.mode; state.sdp = meta.sdp;
+    if (meta.version) $('versionNote').textContent = `· v${meta.version}`;
+    try { state.settings = await api('/api/settings'); renderSettings(); } catch (_) { /* 설정을 못 불러와도 화면은 동작해요 */ }
     const b = $('modeBadge');
     b.textContent = meta.demo ? '예제 (실제 PC 값이 아니에요)' : '실제 PC';
     if (meta.demo) b.classList.add('demo');

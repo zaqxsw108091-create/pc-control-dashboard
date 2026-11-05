@@ -20,7 +20,7 @@ export const LINK_IDS = ['network', 'firewall', 'eventlog'];
 // 값을 어디서 읽었는지 화면에 보여 주기 위한 출처 표시
 export const SOURCES = {
   cpu: 'Node 기본 기능(os.cpus), 0.5초 간격 비교',
-  memory: 'Node 기본 기능(os.totalmem·freemem)',
+  memory: 'Node 기본 기능(os.totalmem·freemem), Linux는 /proc/meminfo',
   disk: 'Node 기본 기능(fs.statfs), 시스템 드라이브',
   firewall: 'PowerShell Get-NetFirewallProfile (막히면 레지스트리 읽기)',
   defender: 'PowerShell Get-MpComputerStatus',
@@ -145,18 +145,18 @@ export function judgeEventLog(r, t = THRESHOLDS) {
   });
 }
 
-export function judgeAll(readings = {}) {
+export function judgeAll(readings = {}, t = THRESHOLDS) {
   const items = [
-    judgeCpu(readings.cpu),
-    judgeMemory(readings.memory),
-    judgeDisk(readings.disk),
+    judgeCpu(readings.cpu, t),
+    judgeMemory(readings.memory, t),
+    judgeDisk(readings.disk, t),
     judgeFirewall(readings.firewall),
     judgeDefender(readings.defender),
-    judgeUpdate(readings.update),
-    judgePorts(readings.ports),
-    judgeStartup(readings.startup),
+    judgeUpdate(readings.update, t),
+    judgePorts(readings.ports, t),
+    judgeStartup(readings.startup, t),
     judgeNetwork(readings.network),
-    judgeEventLog(readings.eventlog),
+    judgeEventLog(readings.eventlog, t),
   ];
   return { items, summary: summarize(items) };
 }

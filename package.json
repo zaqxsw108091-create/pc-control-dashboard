@@ -1,6 +1,6 @@
 {
   "name": "pc-control-dashboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "내 Windows PC의 상태(CPU·메모리·디스크·방화벽 등)를 읽어서 보여 주는 읽기 전용 점검 대시보드",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "start": "node student/server.mjs",
     "demo": "node student/server.mjs --demo",
     "check": "node student/check-once.mjs",
-    "test": "node --test test/student.test.mjs"
+    "test": "node --test \"test/*.test.mjs\""
   },
   "engines": {
     "node": ">=22"
