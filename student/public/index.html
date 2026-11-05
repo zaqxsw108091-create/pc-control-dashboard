@@ -200,7 +200,7 @@ function renderChart() {
     const t = mk('text', { x: L - 6, y: y(g) + 4, 'text-anchor': 'end' }); t.textContent = `${g}%`; svg.append(t);
   }
   svg.append(mk('line', { x1: L, x2: W - R, y1: y(m.line), y2: y(m.line), stroke: 'var(--warn)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }));
-  const lt = mk('text', { x: W - R, y: y(m.line) - 4, 'text-anchor': 'end' }); lt.textContent = m.low ? `${m.line}% 이하면 주의` : `${m.line}% 이상이면 주의`; svg.append(lt);
+  const lt = mk('text', { x: W - R, y: T + 12, 'text-anchor': 'end' }); lt.textContent = m.low ? `${m.line}% 이하면 주의` : `${m.line}% 이상이면 주의`; svg.append(lt);
   svg.append(mk('polyline', { points: pts.map((p, k) => `${x(k)},${y(p.v)}`).join(' '), fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2.5 }));
   pts.forEach((p, k) => {
     const warn = m.low ? p.v <= m.line : p.v >= m.line;
