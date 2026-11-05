@@ -179,12 +179,12 @@ node student\check-once.mjs
 | --- | --- |
 | 판정 규칙, 위험 알림 계산, 기록, 서버, 설정 저장·검증, 거부 동작 자동 시험 38건 | 개발 환경(Linux)에서 통과 |
 | 브라우저 자동 조작 시험(조회·설정 저장/오류/되돌리기·그래프·CSV·자동 조회 기억·테마·키보드·모바일, 콘솔 오류 0건) | 개발 환경(Linux, Chromium)에서 통과 |
-| GitHub Actions(Ubuntu·**Windows**)에서 자동 시험과 실제 조회 | `.github/workflows/test.yml`로 실행 (결과는 저장소 Actions 탭, 아래 참고) |
+| GitHub Actions(Ubuntu·**Windows**)에서 자동 시험 38건과 실제 조회 | **둘 다 통과.** Windows 서버(`windows-latest`)에서 방화벽·Windows 보안·업데이트·포트·시작프로그램·네트워크·경고/오류 **PowerShell 조회가 진짜로 값을 읽음**을 확인 (결과는 저장소 Actions 탭) |
 | 브라우저 화면(데스크톱·모바일, 어두운/밝은 색) | 개발 환경(Linux)에서 오류 없이 확인 |
 | 예제 모드, 포트 자동 찾기, `--no-save`, 위험 알림 상자·읽지 못한 항목 상자 | 개발 환경(Linux)에서 확인 |
 | 안내 문장대로 빈 폴더(ZIP을 푼 것처럼)에서 따라 하기 | 개발 환경(Linux)에서 안내 순서대로 실행해 확인 (예제 켜기, 글자 조회, 화면 응답) |
 | **실제 다른 사람이 Windows에서 이 안내만 보고 따라 하기** | **아직 못 해 봄** |
-| Windows PowerShell 명령의 **진짜 출력** | **직접 확인하지 못함** (가짜 결과로 해석·판정만 시험) |
+| Windows PowerShell 명령의 **진짜 출력** | **GitHub의 Windows 서버에서는 확인함.** 다만 이는 일반 사용자 PC가 아니라 CI 서버(예: Windows 보안 실시간 보호가 "꺼짐"으로 나옴)라서, 내 PC에서도 같은지는 **아직 모름** |
 | `start.bat` / `start.ps1` / 휴대용 Node 방식 | **Windows에서 직접 확인하지 못함** |
 | CPU·메모리·디스크 값이 Windows 작업 관리자와 맞는지 | **확인하지 못함** (메모리는 조금 다를 수 있음) |
 

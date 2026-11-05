@@ -19,7 +19,7 @@
 - 본문 바로가기, `<main>` 영역, 터치 화면 44px 버튼, 움직임 줄이기 설정 존중, JavaScript 꺼짐 안내, 파비콘.
 - `frame-ancestors 'none'`, `X-Frame-Options`, `Cross-Origin-Resource-Policy` 추가. 설정 저장은 같은 출처의 JSON POST만(4KB 제한).
 
-**시험**: 27건 → 38건.
+**시험**: 27건 → 38건. Ubuntu·Windows CI 모두 통과, Windows 서버에서 PowerShell 조회가 실제로 값을 읽는 것을 확인.
 
 ## 0.1.0
 첫 공개: Windows 읽기 전용 점검, 위험 알림, 기록·CSV, 어두운 화면 기본.
