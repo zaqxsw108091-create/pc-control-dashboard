@@ -7,6 +7,21 @@
 > **먼저 알아 두세요.** 이 프로그램은 PC를 지켜 주거나 고쳐 주는 *보안 제품이 아닙니다.* 상태를 보여 주기만 하고, 설정을 바꾸지 않고, 인터넷의 다른 서버로 아무것도 보내지 않습니다.
 > 또 Windows에서의 실제 동작은 아직 충분히 확인하지 못했습니다(아래 [검증 현황](#검증-현황-솔직하게) 참고).
 
+## 이 저장소와 과제 제출본의 관계
+
+| | 이 저장소 (포트폴리오용 독립 앱) | 과제 정식 완성본 |
+| --- | --- | --- |
+| 위치 | 이 저장소 `main` | 원래 저장소 [`choi-bujang-secret-vault`](https://github.com/zaqxsw108091-create/choi-bujang-secret-vault)의 **`final-assault` 브랜치** |
+| 형태 | 따로 켜는 점검 앱 (`node student/server.mjs`) | 22단계 **케셰브 앱 안에 끼워 넣은 기능** (`on-client/student/extension.mjs`) |
+| CPU·메모리·디스크·네트워크·방화벽·경고·오류 읽기 | **직접 만듦** | **케셰브 시작 틀 0.2.21의 제공 「내 PC 상태」를 씀** (다시 만들지 않음) |
+| Windows 보안·업데이트 날짜·열린 포트·시작프로그램 | 있음 | 없음 (제공 서버 코드를 고치지 않는 규칙) |
+| 기록·추이 비교·위험 알림 | 있음 (PC 파일에 저장) | 새로 구현 (이 브라우저에 저장) |
+| CSV 내보내기 | 있음 | 없음 |
+| 22단계 기능(로그인·기기·접속 판정·AI 설명) | 없음 | 그대로 포함 |
+
+- 과제 제출은 **원래 저장소의 `final-assault` 브랜치 커밋**으로 합니다. 제공 기능과 내가 만든 기능을 나눠 적은 정리 문서는 [`docs/kesheb-final-assault.md`](docs/kesheb-final-assault.md)(원래 저장소 `docs/FINAL_ASSAULT.md`의 사본)에 있습니다.
+- 이 저장소의 앱은 독립 실행 버전이라 포트폴리오로 따로 남깁니다. 아래 설명은 모두 **이 독립 앱** 기준입니다.
+
 ![어두운 화면 예제](docs/screenshot-dark.png)
 
 *위 화면은 "예제 모드"의 가짜 값입니다. 실제 PC 값이 아닙니다.*
@@ -207,4 +222,4 @@ node student/server.mjs --demo        # 예제 모드 (--port=4200, --no-save, -
 
 자세한 내용은 [`student/README.md`](student/README.md) 도 보세요.
 
-이 프로그램은 "2026 KIT K-뉴딜 SKT ALEPH 공동 방어전"의 마지막 과제로 만들었고, 같은 코드가 과제용 저장소 `choi-bujang-secret-vault` 의 `student/` 폴더에도 들어 있습니다.
+이 프로그램은 "2026 KIT K-뉴딜 SKT ALEPH 공동 방어전"의 마지막 과제를 하며 먼저 만든 **독립 실행 버전**입니다. 같은 코드가 과제용 저장소 `choi-bujang-secret-vault`의 `main` 브랜치 `student/` 폴더에도 사본으로 있지만, **과제 정식 완성본은 그 저장소의 `final-assault` 브랜치**(케셰브 앱 안에 끼워 넣은 형태)입니다.
