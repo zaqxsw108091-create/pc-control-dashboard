@@ -58,7 +58,7 @@
 - **화면 색**: 항상 **어두운 화면이 기본**입니다(윈도우 밝은 모드를 따라가지 않음). "색" 버튼을 누르면 밝은 화면으로 바꿀 수 있고, 고른 색은 이 브라우저에 기억됩니다.
 - 카드와 줄마다 **"몇 시에 측정 · 어디서 읽었는지"** 가 적혀 있습니다.
 
-## 4. 판정 기준 (학습용 처음 값, `student/judge.mjs`에서 바꿈)
+## 4. 판정 기준 (학습용 처음 값, 화면의 "주의 기준 바꾸기" 또는 `student/judge.mjs`에서 바꿈)
 
 | 항목 | 주의 | 읽지 못하면 |
 | --- | --- | --- |
@@ -111,19 +111,19 @@
 **근거**
 
 - 화면 캡처: 저장소의 `docs/` 폴더(포트폴리오 저장소) 스크린샷은 *예제 모드*의 가짜 값이다.
-- 실행 기록: `node --test test/student.test.mjs` 출력(아래 "확인한 것"), `node student/check-once.mjs` 출력.
+- 실행 기록: `npm test` 출력(아래 "확인한 것"), `node student/check-once.mjs` 출력.
 - 커밋 번호: 제출하는 40자리 커밋 번호(`git rev-parse HEAD`).
 
 ## 8. 확인한 것 / 확인하지 못한 것
 
-- **확인함 (개발 환경, Linux):** student 자동 시험 27건 통과, 저장소 전체 시험 290건 통과, 예제 모드·실제 모드 화면(데스크톱·모바일·어두운/밝은 색)을 브라우저에서 열어 클릭 동작과 오류 없음 확인, 포트 자동 찾기, `--no-save`, 다른 주소 요청 거절.
+- **확인함 (개발 환경, Linux):** student 자동 시험 38건 통과(v0.2.0, 기준 설정 포함), 저장소 전체 시험 290건 통과, 예제 모드·실제 모드 화면(데스크톱·모바일·어두운/밝은 색)을 브라우저에서 열어 클릭 동작과 오류 없음 확인, 포트 자동 찾기, `--no-save`, 다른 주소 요청 거절.
 - **가짜 PowerShell 결과로:** Windows 항목의 해석과 판정, 일부 명령 실패 시 "확인 불가"와 대체 방법(방화벽 레지스트리, 네트워크 Node 기본) 동작.
 - **확인하지 못함:** 실제 Windows PC에서 PowerShell 명령이 내는 진짜 결과, `start.bat`·`start.ps1`·휴대용 Node 방식을 Windows에서 실행, **다른 사람이 내 도움 없이 이 안내만 보고 따라 해 보기**.
 
 ## 9. 파일
 
-`server.mjs`(서버) · `collect.mjs`(읽기) · `judge.mjs`(판정) · `alerts.mjs`(위험 알림 계산) · `store.mjs`(기록) · `demo.mjs`(예제 값) · `check-once.mjs`(글자로 한 번 조회) · `public/index.html`(화면) · `start*.bat/.ps1`(켜는 단축 파일). 시험은 `test/student.test.mjs`.
+`server.mjs`(서버) · `collect.mjs`(읽기) · `judge.mjs`(판정) · `alerts.mjs`(위험 알림 계산) · `store.mjs`(기록) · `settings.mjs`(주의 기준 설정) · `demo.mjs`(예제 값) · `check-once.mjs`(글자로 한 번 조회) · `public/index.html`(화면) · `start*.bat/.ps1`(켜는 단축 파일). 시험은 `test/*.test.mjs`.
 
 ```
-node --test test/student.test.mjs
+npm test
 ```
