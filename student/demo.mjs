@@ -19,5 +19,7 @@ export function demoReadings(n = 0) {
     update: { days: [3, 12, 70, 5, 8, 20][i] },
     ports: { count: [18, 21, 24, 45, 19, 22][i] },
     startup: { count: [9, 10, 18, 11, 9, 12][i] },
+    network: i === 3 ? { connected: false, kinds: [] } : { connected: true, kinds: [['유선'], ['유선'], ['무선'], [], ['유선'], ['유선', '무선']][i] },
+    eventlog: { system: [1, 4, 22, 90, 3, 20][i], application: [2, 8, 18, 40, 5, 35][i], total: [3, 12, 40, 130, 8, 55][i], capped: false },
   };
 }

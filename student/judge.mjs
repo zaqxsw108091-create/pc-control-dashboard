@@ -10,20 +10,39 @@ export const THRESHOLDS = {
   updateDaysWarn: 60, // 마지막 Windows 업데이트 설치가 이 일수보다 오래되면 주의
   portsWarn: 40, // 바깥에서 접속을 기다리는 포트가 이 개수보다 많으면 주의
   startupWarn: 15, // 시작 때 자동 실행되는 프로그램이 이 개수보다 많으면 주의
+  eventsWarn: 100, // 최근 24시간 Windows 경고·오류가 이 건수보다 많으면 주의 (침해 판정이 아님)
 };
 
 export const CORE_IDS = ['cpu', 'memory', 'disk', 'firewall'];
 export const CHECK_IDS = ['defender', 'update', 'ports', 'startup'];
+export const LINK_IDS = ['network', 'firewall', 'eventlog'];
+
+// 값을 어디서 읽었는지 화면에 보여 주기 위한 출처 표시
+export const SOURCES = {
+  cpu: 'Node 기본 기능(os.cpus), 0.5초 간격 비교',
+  memory: 'Node 기본 기능(os.totalmem·freemem)',
+  disk: 'Node 기본 기능(fs.statfs), 시스템 드라이브',
+  firewall: 'PowerShell Get-NetFirewallProfile (막히면 레지스트리 읽기)',
+  defender: 'PowerShell Get-MpComputerStatus',
+  update: 'PowerShell Get-HotFix',
+  ports: 'PowerShell Get-NetTCPConnection',
+  startup: 'PowerShell Get-CimInstance Win32_StartupCommand',
+  network: 'PowerShell Get-NetAdapter (막히면 Node os.networkInterfaces)',
+  eventlog: 'PowerShell Get-WinEvent, System·Application 최근 24시간',
+};
 
 const pct = (n) => `${Math.round(n)}%`;
 const bad = (r) => !r || typeof r !== 'object' || r.error !== undefined;
+const PERMISSION = /denied|unauthori[sz]ed|permission|권한|거부|액세스/i;
 
-function item(id, label, status, text, { value = null, hint = '' } = {}) {
-  return { id, label, status, text, value, hint };
+function item(id, label, status, text, { value = null, hint = '', reason = '' } = {}) {
+  return { id, label, status, text, value, hint, reason, source: SOURCES[id] || '' };
 }
 function unknown(id, label, r) {
   const why = r && typeof r.error === 'string' && r.error ? r.error : '값을 읽지 못했어요';
-  return item(id, label, STATUS.UNKNOWN, '확인 불가', {
+  const text = PERMISSION.test(why) ? '확인 불가 · 권한 없음' : '확인 불가';
+  return item(id, label, STATUS.UNKNOWN, text, {
+    reason: why,
     hint: `${why}. 읽지 못했으므로 정상이라고 말할 수 없어요.`,
   });
 }
@@ -103,6 +122,29 @@ export function judgeStartup(r, t = THRESHOLDS) {
   });
 }
 
+export function judgeNetwork(r) {
+  if (bad(r) || typeof r.connected !== 'boolean') return unknown('network', '네트워크 연결', r);
+  if (!r.connected) {
+    return item('network', '네트워크 연결', STATUS.WARN, '연결 안 됨', {
+      hint: '네트워크 케이블이나 Wi-Fi 연결을 확인해 보세요. 연결 종류만 읽고 주소(IP)·이름은 저장하지 않아요.',
+    });
+  }
+  const kinds = Array.isArray(r.kinds) && r.kinds.length ? r.kinds.join('·') : '종류 알 수 없음';
+  return item('network', '네트워크 연결', STATUS.OK, kinds === '종류 알 수 없음' ? '연결됨 (종류 알 수 없음)' : `${kinds} 연결됨`);
+}
+
+export function judgeEventLog(r, t = THRESHOLDS) {
+  if (bad(r) || !Number.isFinite(r.total)) return unknown('eventlog', 'Windows 경고·오류', r);
+  const warn = r.total > t.eventsWarn;
+  const n = r.capped ? `${r.total}건 이상` : `${r.total}건`;
+  return item('eventlog', 'Windows 경고·오류', warn ? STATUS.WARN : STATUS.OK, `최근 24시간 ${n} · 침해 판정 아님`, {
+    value: r.total,
+    hint: warn
+      ? '이벤트 뷰어 > Windows 로그 > System·Application에서 볼 수 있어요. 건수만 센 것이며 침해라는 뜻은 아니에요.'
+      : '',
+  });
+}
+
 export function judgeAll(readings = {}) {
   const items = [
     judgeCpu(readings.cpu),
@@ -113,6 +155,8 @@ export function judgeAll(readings = {}) {
     judgeUpdate(readings.update),
     judgePorts(readings.ports),
     judgeStartup(readings.startup),
+    judgeNetwork(readings.network),
+    judgeEventLog(readings.eventlog),
   ];
   return { items, summary: summarize(items) };
 }

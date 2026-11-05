@@ -42,7 +42,7 @@ export function toEntry({ items, summary }, mode, at = new Date()) {
     at: at.toISOString(),
     mode,
     summary: summary.text,
-    items: items.map((i) => ({ id: i.id, label: i.label, status: i.status, text: i.text, value: i.value, hint: i.hint })),
+    items: items.map((i) => ({ id: i.id, label: i.label, status: i.status, text: i.text, value: i.value, hint: i.hint, reason: i.reason || '', source: i.source || '' })),
   };
 }
 

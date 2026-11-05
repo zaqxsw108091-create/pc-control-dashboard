@@ -20,7 +20,14 @@ export const PS = {
   ports:
     "(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object { $_.LocalAddress -notin '127.0.0.1','::1' } | Measure-Object).Count",
   startup: '(Get-CimInstance Win32_StartupCommand -ErrorAction Stop | Measure-Object).Count',
+  // 연결된(Up) 실제 어댑터의 종류만 읽습니다. 주소(IP)·MAC·이름은 읽지 않아요.
+  network:
+    "Get-NetAdapter -ErrorAction Stop | Where-Object { $_.Status -eq 'Up' -and -not $_.Virtual } | ForEach-Object { [pscustomobject]@{ Media=[string]$_.MediaType } } | ConvertTo-Json -Compress",
+  // System·Application 기록에서 최근 24시간 경고(3)·오류(2)의 건수만 셉니다. 내용은 읽지 않아요.
+  events:
+    "$since = (Get-Date).AddHours(-24); $out = @{}; foreach ($n in 'System','Application') { try { $out[$n] = @(Get-WinEvent -FilterHashtable @{ LogName = $n; Level = 2,3; StartTime = $since } -MaxEvents 500 -ErrorAction Stop).Count } catch { if ($_.FullyQualifiedErrorId -like '*NoMatchingEventsFound*') { $out[$n] = 0 } else { throw } } }; [pscustomobject]@{ System = $out['System']; Application = $out['Application'] } | ConvertTo-Json -Compress",
 };
+export const EVENTS_CAP = 500;
 
 export function powerShellPath(platform = process.platform) {
   if (platform !== 'win32') return 'powershell.exe';
@@ -126,6 +133,38 @@ export function parseCount(out, what) {
   return { count: Number(s) };
 }
 
+export function parseNetwork(out) {
+  const text = String(out).trim();
+  if (text === '') return { connected: false, kinds: [] };
+  const data = JSON.parse(text);
+  const arr = (Array.isArray(data) ? data : [data]).filter((a) => a && typeof a.Media === 'string');
+  const kinds = [];
+  for (const a of arr) {
+    const k = /802\.3/.test(a.Media) ? '유선' : /802\.11/.test(a.Media) ? '무선' : '기타';
+    if (!kinds.includes(k)) kinds.push(k);
+  }
+  return { connected: arr.length > 0, kinds };
+}
+
+export function parseEvents(out) {
+  const d = JSON.parse(String(out).trim());
+  if (!d || !Number.isInteger(d.System) || !Number.isInteger(d.Application) || d.System < 0 || d.Application < 0) {
+    throw new Error('Windows 경고·오류 건수를 해석하지 못했어요');
+  }
+  return { system: d.System, application: d.Application, total: d.System + d.Application, capped: d.System >= EVENTS_CAP || d.Application >= EVENTS_CAP };
+}
+
+// PowerShell 없이도 되는 대체 방법: 바깥으로 연결된 인터페이스가 있는지만 봅니다(주소는 저장하지 않아요).
+export function readNetworkBasic() {
+  try {
+    const all = Object.values(os.networkInterfaces()).flat().filter(Boolean);
+    const up = all.some((a) => !a.internal && (a.family === 'IPv4' || a.family === 4) && !String(a.address).startsWith('169.254.'));
+    return { connected: up, kinds: [] };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 async function viaPowerShell(run, script, parse) {
   try {
     return parse(await run(script));
@@ -145,7 +184,12 @@ export async function collectAll({ platform = process.platform, run = runPowerSh
     const second = await viaPowerShell(run, PS.firewallReg, parseFirewall);
     return second.error ? first : second; // 둘 다 안 되면 첫 번째 이유를 보여 줍니다.
   };
-  const [cpu, disk, firewall, defender, update, ports, startup] = await Promise.all([
+  const networkRead = async () => {
+    if (!win) return readNetworkBasic();
+    const first = await viaPowerShell(run, PS.network, parseNetwork);
+    return first.error ? readNetworkBasic() : first;
+  };
+  const [cpu, disk, firewall, defender, update, ports, startup, network, eventlog] = await Promise.all([
     readCpu(),
     readDisk(platform),
     firewallRead(),
@@ -153,6 +197,8 @@ export async function collectAll({ platform = process.platform, run = runPowerSh
     onlyWin(PS.update, (o) => parseUpdate(o, now)),
     onlyWin(PS.ports, (o) => parseCount(o, '포트')),
     onlyWin(PS.startup, (o) => parseCount(o, '시작프로그램')),
+    networkRead(),
+    onlyWin(PS.events, parseEvents),
   ]);
-  return { cpu, memory: readMemory(), disk, firewall, defender, update, ports, startup };
+  return { cpu, memory: readMemory(), disk, firewall, defender, update, ports, startup, network, eventlog };
 }

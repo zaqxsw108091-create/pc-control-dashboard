@@ -8,18 +8,18 @@
 :root {
   --bg: #f4f6fa; --panel: #ffffff; --line: #d9dfe9; --text: #1b2330; --muted: #5b6678;
   --ok: #0f7a4f; --ok-bg: #e2f5ec; --warn: #9a5b00; --warn-bg: #fff1d6; --unk: #4a5568; --unk-bg: #e8ebf1;
-  --accent: #4b3fd1; --focus: #4b3fd1;
+  --accent: #4b3fd1; --on-accent: #ffffff; --focus: #4b3fd1;
 }
 :root[data-theme="dark"] {
   --bg: #0e1220; --panel: #171d30; --line: #2a3350; --text: #e8ecf6; --muted: #9aa5bd;
   --ok: #5fe0a8; --ok-bg: #12382b; --warn: #ffc15e; --warn-bg: #3e2f0f; --unk: #b4bdd0; --unk-bg: #262e45;
-  --accent: #a99cff; --focus: #a99cff;
+  --accent: #a99cff; --on-accent: #10131f; --focus: #a99cff;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0e1220; --panel: #171d30; --line: #2a3350; --text: #e8ecf6; --muted: #9aa5bd;
     --ok: #5fe0a8; --ok-bg: #12382b; --warn: #ffc15e; --warn-bg: #3e2f0f; --unk: #b4bdd0; --unk-bg: #262e45;
-    --accent: #a99cff; --focus: #a99cff;
+    --accent: #a99cff; --on-accent: #10131f; --focus: #a99cff;
   }
 }
 * { box-sizing: border-box; }
@@ -27,16 +27,14 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Mal
 .wrap { max-width: 1040px; margin: 0 auto; padding: 16px; }
 header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 h1 { font-size: 20px; margin: 0; }
-h2 { font-size: 16px; margin: 0 0 10px; }
+h2 { font-size: 16px; margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
 .badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .badge { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 13px; background: var(--panel); color: var(--muted); }
 .badge.demo { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); font-weight: 700; }
 button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px; padding: 6px 12px; }
-button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
-:root[data-theme="dark"] button.primary { color: #10131f; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #10131f; } }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; }
 button:disabled { opacity: .6; cursor: progress; }
-button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
 .summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
 .summary strong { font-size: 18px; }
@@ -46,18 +44,24 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); out
 .card .label { color: var(--muted); font-size: 13px; }
 .card .val { font-size: 20px; font-weight: 700; margin: 2px 0; }
 .card .hint { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .tag { display: inline-block; border-radius: 6px; padding: 1px 8px; font-size: 13px; font-weight: 700; }
+.tag.ro { background: var(--unk-bg); color: var(--unk); font-weight: 400; }
 .s-ok { border-left-color: var(--ok); } .tag.s-ok { background: var(--ok-bg); color: var(--ok); }
 .s-warn { border-left-color: var(--warn); } .tag.s-warn { background: var(--warn-bg); color: var(--warn); }
 .s-unknown { border-left-color: var(--unk); } .tag.s-unknown { background: var(--unk-bg); color: var(--unk); }
 .rows { display: grid; gap: 8px; }
-.row { display: grid; grid-template-columns: 150px 1fr; gap: 4px 12px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 6px; border-radius: 10px; }
+.row { display: grid; grid-template-columns: 215px 1fr; gap: 4px 12px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-left-width: 6px; border-radius: 10px; }
 .row .t { font-weight: 700; } .row .h { grid-column: 2; font-size: 13px; color: var(--muted); }
 @media (max-width: 560px) { .row { grid-template-columns: 1fr; } .row .h { grid-column: 1; } }
+.alertbox { border: 2px solid var(--warn); background: var(--warn-bg); }
+.alertbox.clear { border: 1px solid var(--line); background: var(--panel); }
+.alertbox ul, .errbox ul { margin: 6px 0 0; padding-left: 20px; }
+.alertbox li, .errbox li { margin: 4px 0; }
+.errbox { border: 1px dashed var(--unk); background: var(--unk-bg); }
+.errbox[hidden], #saveBadge[hidden] { display: none; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.tabs button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
-:root[data-theme="dark"] .tabs button[aria-pressed="true"] { color: #10131f; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tabs button[aria-pressed="true"] { color: #10131f; } }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 svg { width: 100%; height: auto; display: block; }
 svg text { fill: var(--muted); font-size: 11px; }
 .log { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; max-height: 340px; overflow: auto; }
@@ -65,6 +69,8 @@ svg text { fill: var(--muted); font-size: 11px; }
 .log time { color: var(--muted); min-width: 64px; }
 .empty { color: var(--muted); padding: 8px; }
 .err { color: var(--warn); font-weight: 700; }
+details.guide { margin-bottom: 14px; }
+details.guide summary { cursor: pointer; font-weight: 700; }
 footer { color: var(--muted); font-size: 13px; padding: 4px 2px 24px; }
 label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
 </style>
@@ -92,11 +98,26 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
     </div>
   </section>
 
+  <section class="panel alertbox clear" id="alertBox" aria-live="polite">
+    <h2>위험 알림 <span class="muted" id="alertNote">기준을 넘은 항목을 알려 줘요 · 침해(공격) 판정이 아니에요</span></h2>
+    <div id="alertCurrent"></div>
+    <div class="tabs" style="margin-top:8px"><button id="notifyBtn" type="button">바탕화면 알림 켜기</button><span class="muted" id="notifyNote"></span></div>
+    <div class="muted" style="margin:8px 0 4px">알림 기록</div>
+    <ul class="log" id="alertLog" style="max-height:160px"></ul>
+  </section>
+
+  <section class="panel errbox" id="errBox" hidden aria-live="polite"></section>
+
   <section class="cards" id="coreCards" aria-label="핵심 상태 카드"></section>
 
   <section class="panel">
-    <h2>보안 점검 <span class="muted">(읽기만 해요 · Windows 전용 항목)</span></h2>
+    <h2>보안 점검 <span class="muted">읽기만 해요 · Windows 전용 항목</span></h2>
     <div class="rows" id="checkRows"></div>
+  </section>
+
+  <section class="panel">
+    <h2>연결과 기록 <span class="muted">PC 조회 결과와 SDP 서버 연결 상태를 따로 보여 줘요</span></h2>
+    <div class="rows" id="linkRows"></div>
   </section>
 
   <section class="panel">
@@ -111,6 +132,12 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
     <ul class="log" id="log"></ul>
   </section>
 
+  <details class="panel guide">
+    <summary>화면 읽는 법 (처음이라면 눌러 보세요)</summary>
+    <p><span class="tag s-ok">● 정상</span> 기준 안에 있어요. <span class="tag s-warn">▲ 주의</span> 기준을 넘었어요. 문제가 있다는 확정이 아니에요. <span class="tag s-unknown">? 확인 불가</span> 값을 읽지 못했어요. 이유가 함께 나오고, 정상이라는 뜻이 아니에요.</p>
+    <p class="muted">카드와 줄마다 "몇 시에 · 어디서 읽었는지"가 작은 글씨로 적혀 있어요. 맨 위 "다시 조회"를 누르면 지금 값으로 새로 읽고, 조회할 때마다 아래 "최근 기록"에 남아요.</p>
+  </details>
+
   <footer>
     이 앱은 내 PC 상태를 읽어서 보여 주기만 해요. 막거나 고치지 않고, 설정을 바꾸지 않고, 외부 서버에 연결하지 않아요.
     기준값은 학습용이며 완성된 보안 제품이 아니에요. 기록에는 숫자·상태·시각만 남아요.
@@ -121,14 +148,16 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; font-size: 1
 'use strict';
 const LABEL = { ok: '정상', warn: '주의', unknown: '확인 불가' };
 const ICON = { ok: '●', warn: '▲', unknown: '?' };
+const NAMES = { cpu: 'CPU', memory: '메모리', disk: '디스크', firewall: '방화벽', defender: 'Windows 보안 실시간 보호', update: 'Windows 업데이트', ports: '열린 포트', startup: '시작프로그램', network: '네트워크 연결', eventlog: 'Windows 경고·오류' };
 const CORE = ['cpu', 'memory', 'disk', 'firewall'];
 const CHECKS = ['defender', 'update', 'ports', 'startup'];
+const LINKS = ['network', 'firewall', 'eventlog'];
 const METRICS = [
-  { id: 'cpu', name: 'CPU 사용률', unit: '%', max: 100, line: 70 },
-  { id: 'memory', name: '메모리 사용률', unit: '%', max: 100, line: 80 },
-  { id: 'disk', name: '디스크 남은 공간', unit: '%', max: 100, line: 15, low: true },
+  { id: 'cpu', name: 'CPU 사용률', max: 100, line: 70 },
+  { id: 'memory', name: '메모리 사용률', max: 100, line: 80 },
+  { id: 'disk', name: '디스크 남은 공간', max: 100, line: 15, low: true },
 ];
-const state = { entries: [], metric: 'cpu', filter: 'all', mode: 'real', busy: false, error: '' };
+const state = { entries: [], alerts: { current: [], events: [] }, sdp: null, metric: 'cpu', filter: 'all', mode: 'real', busy: false, notify: false };
 const $ = (id) => document.getElementById(id);
 
 function el(tag, cls, text) {
@@ -144,33 +173,60 @@ function fmtTime(iso) {
   return same ? t : `${d.getMonth() + 1}/${d.getDate()} ${t}`;
 }
 function tag(status) { return el('span', `tag s-${status}`, `${ICON[status]} ${LABEL[status]}`); }
+function findItem(entry, id) { return entry && entry.items.find((x) => x.id === id); }
+// 읽지 못한 이유에 맞는 다음 행동을 알려 줘요.
+function nextAction(i) {
+  const why = i.reason || '';
+  if (/권한|거부|denied|unauthori|permission|액세스/i.test(why)) return '권한을 확인한 뒤 "다시 조회"를 눌러 주세요. 학원·회사 PC라면 관리자 규정을 먼저 확인하세요.';
+  if (/Windows에서만/.test(why)) return 'Windows PC에서 실행하면 읽혀요. 이 컴퓨터에서는 이 항목을 읽을 수 없어요.';
+  return '잠시 뒤 "다시 조회"를 눌러 보세요. 계속 안 되면 터미널에서 node student/check-once.mjs 로 원인을 확인할 수 있어요.';
+}
+function metaLine(entry, i) {
+  return el('div', 'meta', `${fmtTime(entry.at)} 측정${i && i.source ? ` · ${i.source}` : ''}`);
+}
 
 function renderCards(entry) {
   const box = $('coreCards');
   box.replaceChildren();
   for (const id of CORE) {
-    const i = entry && entry.items.find((x) => x.id === id);
+    const i = findItem(entry, id);
     const c = el('div', `card s-${i ? i.status : 'unknown'}`);
-    c.append(el('div', 'label', i ? i.label : { cpu: 'CPU', memory: '메모리', disk: '디스크', firewall: '방화벽' }[id]));
+    c.append(el('div', 'label', NAMES[id]));
     c.append(el('div', 'val', i ? i.text : '—'));
     c.append(i ? tag(i.status) : el('span', 'muted', '아직 조회 전'));
     if (i && i.hint) c.append(el('div', 'hint', i.hint));
+    if (i) c.append(metaLine(entry, i));
     box.append(c);
   }
 }
-function renderChecks(entry) {
-  const box = $('checkRows');
+function renderRows(boxId, ids, entry, extra) {
+  const box = $(boxId);
   box.replaceChildren();
-  for (const id of CHECKS) {
-    const i = entry && entry.items.find((x) => x.id === id);
+  for (const id of ids) {
+    const i = findItem(entry, id);
     const r = el('div', `row s-${i ? i.status : 'unknown'}`);
-    r.append(el('div', 't', i ? i.label : { defender: 'Windows 보안 실시간 보호', update: 'Windows 업데이트', ports: '열린 포트', startup: '시작프로그램' }[id]));
+    r.append(el('div', 't', NAMES[id]));
     const v = el('div');
-    v.append(i ? tag(i.status) : el('span', 'muted', '아직 조회 전'), document.createTextNode(i ? `  ${i.text === '확인 불가' ? '' : i.text}` : ''));
+    v.append(i ? tag(i.status) : el('span', 'muted', '아직 조회 전'));
+    if (i && !i.text.startsWith('확인 불가')) v.append(document.createTextNode(`  ${i.text}`));
+    if (i && i.text.startsWith('확인 불가 · ')) v.append(document.createTextNode(`  ${i.text.slice(8)}`));
+    if (extra && extra[id]) { v.append(document.createTextNode(' '), el('span', 'tag ro', extra[id])); }
     r.append(v);
     if (i && i.hint) r.append(el('div', 'h', i.hint));
+    if (i) { const m = metaLine(entry, i); m.style.gridColumn = '2'; r.append(m); }
     box.append(r);
   }
+  return box;
+}
+function renderLinks(entry) {
+  const box = renderRows('linkRows', LINKS, entry, { firewall: '읽기만 함' });
+  const sdp = state.sdp || { state: 'SDP 미연결', note: '서버 연결 안 함' };
+  const r = el('div', 'row s-unknown');
+  r.append(el('div', 't', 'SDP 서버'));
+  const v = el('div');
+  v.append(el('span', 'tag s-unknown', `? ${sdp.state}`), document.createTextNode(`  ${sdp.note}`));
+  r.append(v, el('div', 'h', '이 앱은 외부 서버에 연결하지 않아요. 위 항목들은 이 PC에서 읽은 값이고, 이 줄은 서버 연결 상태예요.'));
+  box.append(r);
 }
 function renderSummary(entry) {
   if (!entry) return;
@@ -180,10 +236,57 @@ function renderSummary(entry) {
   $('summaryMeta').textContent = `${fmtTime(entry.at)} 조회 · 주의 ${warn}개 · 확인 불가 ${unk}개${entry.mode === 'demo' ? ' · 예제 값' : ''}`;
 }
 
+function renderErrBox(entry) {
+  const box = $('errBox');
+  const bad = entry ? entry.items.filter((i) => i.status === 'unknown') : [];
+  box.replaceChildren();
+  box.hidden = bad.length === 0;
+  if (bad.length === 0) return;
+  box.append(el('h2', '', `읽지 못한 항목 ${bad.length}개`));
+  box.append(el('div', 'muted', '정상이라는 뜻이 아니에요. 읽지 못한 이유와 다음 행동이에요.'));
+  const ul = el('ul');
+  for (const i of bad) {
+    const li = el('li');
+    li.append(el('strong', '', `${i.label} 값을 읽지 못했습니다. `), document.createTextNode(`이유: ${i.reason || '알 수 없음'}. ${nextAction(i)}`));
+    ul.append(li);
+  }
+  box.append(ul);
+}
+
+function renderAlerts() {
+  const a = state.alerts;
+  const box = $('alertBox');
+  const cur = $('alertCurrent');
+  cur.replaceChildren();
+  box.classList.toggle('clear', a.current.length === 0);
+  if (a.current.length === 0) {
+    cur.append(el('div', '', state.entries.length ? '지금은 주의 항목이 없어요.' : '아직 조회 전이에요.'));
+  } else {
+    cur.append(el('strong', '', `지금 주의 ${a.current.length}개`));
+    const ul = el('ul');
+    for (const c of a.current) {
+      const li = el('li');
+      li.append(tag('warn'), document.createTextNode(` ${c.label} · ${c.text} · ${fmtTime(c.since)}부터`));
+      if (c.hint) li.append(el('div', 'muted', c.hint));
+      ul.append(li);
+    }
+    cur.append(ul);
+  }
+  document.title = a.current.length ? `(!${a.current.length}) 내 PC 관제 대시보드` : '내 PC 관제 대시보드';
+  const ul = $('alertLog');
+  ul.replaceChildren();
+  if (a.events.length === 0) ul.append(el('li', 'empty', '아직 알림 기록이 없어요.'));
+  for (const e of a.events.slice(0, 20)) {
+    const li = el('li');
+    li.append(el('time', '', fmtTime(e.at)), e.kind === 'start' ? tag('warn') : tag('ok'), el('span', '', `${e.label} · ${e.text} ${e.kind === 'start' ? '(주의 시작)' : '(주의 해소)'}`));
+    ul.append(li);
+  }
+}
+
 function renderChart() {
   const m = METRICS.find((x) => x.id === state.metric);
   const pts = state.entries
-    .map((e) => ({ at: e.at, v: (e.items.find((i) => i.id === m.id) || {}).value }))
+    .map((e) => ({ at: e.at, v: (findItem(e, m.id) || {}).value }))
     .filter((p) => Number.isFinite(p.v))
     .slice(-30);
   const box = $('chart');
@@ -250,7 +353,8 @@ function renderTabs() {
 }
 function renderAll() {
   const last = state.entries[state.entries.length - 1];
-  renderCards(last); renderChecks(last); renderSummary(last); renderChart(); renderLog(); renderTabs();
+  renderCards(last); renderRows('checkRows', CHECKS, last); renderLinks(last); renderSummary(last); renderErrBox(last);
+  renderAlerts(); renderChart(); renderLog(); renderTabs();
 }
 
 async function api(path, opts) {
@@ -258,17 +362,28 @@ async function api(path, opts) {
   if (!r.ok) throw new Error(`요청이 거절되었거나 실패했어요 (${r.status})`);
   return r.json();
 }
+function notifyNew(before, after) {
+  if (!state.notify || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  const known = new Set(before.map((a) => a.id));
+  for (const a of after) {
+    if (known.has(a.id)) continue;
+    try { new Notification('내 PC 관제: 주의', { body: `${a.label} · ${a.text}` }); } catch (_) { /* 알림이 막혀도 괜찮아요 */ }
+  }
+}
 async function check() {
   if (state.busy) return;
-  state.busy = true; $('checkBtn').disabled = true; $('checkBtn').textContent = '조회 중…';
+  state.busy = true; $('checkBtn').disabled = true; $('checkBtn').textContent = '새로 읽는 중…';
   try {
+    const before = state.alerts.current;
     const { entry } = await api('/api/check', { method: 'POST' });
     state.entries.push(entry);
     state.entries = state.entries.slice(-500);
+    state.alerts = await api('/api/alerts');
     renderAll();
+    notifyNew(before, state.alerts.current);
   } catch (e) {
     $('summaryMeta').textContent = '';
-    $('summaryMeta').append(el('span', 'err', `조회하지 못했어요: ${e.message}`));
+    $('summaryMeta').append(el('span', 'err', `조회하지 못했어요: ${e.message}. 잠시 뒤 "다시 조회"를 눌러 주세요.`));
   } finally {
     state.busy = false; $('checkBtn').disabled = false; $('checkBtn').textContent = '다시 조회';
   }
@@ -280,6 +395,13 @@ $('autoBox').addEventListener('change', (e) => {
   if (e.target.checked) timer = setInterval(check, 10000);
 });
 $('checkBtn').addEventListener('click', check);
+$('notifyBtn').addEventListener('click', async () => {
+  if (typeof Notification === 'undefined') { $('notifyNote').textContent = '이 브라우저는 바탕화면 알림을 지원하지 않아요. 화면 안 알림은 그대로 보여요.'; return; }
+  if (state.notify) { state.notify = false; $('notifyBtn').textContent = '바탕화면 알림 켜기'; $('notifyNote').textContent = ''; return; }
+  const p = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (p === 'granted') { state.notify = true; $('notifyBtn').textContent = '바탕화면 알림 끄기'; $('notifyNote').textContent = '새로 주의가 생기면 알려 줘요 (이 창이 열려 있는 동안)'; }
+  else $('notifyNote').textContent = '브라우저에서 알림이 허용되지 않았어요. 화면 안 알림은 그대로 보여요.';
+});
 $('themeBtn').addEventListener('click', () => {
   const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   const next = cur === 'dark' ? 'light' : 'dark';
@@ -291,7 +413,7 @@ try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light'
 (async function init() {
   try {
     const meta = await api('/api/meta');
-    state.mode = meta.mode;
+    state.mode = meta.mode; state.sdp = meta.sdp;
     const b = $('modeBadge');
     b.textContent = meta.demo ? '예제 (실제 PC 값이 아니에요)' : '실제 PC';
     if (meta.demo) b.classList.add('demo');
@@ -302,6 +424,7 @@ try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light'
       $('summaryMeta').textContent = '이 컴퓨터는 Windows가 아니라서 방화벽·보안 점검은 "확인 불가"로 나와요.';
     }
     state.entries = (await api('/api/history?limit=100')).entries;
+    state.alerts = await api('/api/alerts');
     renderAll();
     if (state.entries.length === 0) await check();
   } catch (e) {

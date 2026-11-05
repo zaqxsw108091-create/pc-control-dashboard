@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import { judgeAll, judgeCpu, judgeMemory, judgeDisk, judgeFirewall, judgeDefender, judgeUpdate, judgePorts, judgeStartup, THRESHOLDS } from '../student/judge.mjs';
-import { collectAll, parseFirewall, parseDefender, parseUpdate, parseCount, powerShellPath, PS } from '../student/collect.mjs';
+import { judgeAll, judgeCpu, judgeMemory, judgeDisk, judgeFirewall, judgeDefender, judgeUpdate, judgePorts, judgeStartup, judgeNetwork, judgeEventLog, THRESHOLDS } from '../student/judge.mjs';
+import { computeAlerts } from '../student/alerts.mjs';
+import { collectAll, parseFirewall, parseDefender, parseUpdate, parseCount, parseNetwork, parseEvents, readNetworkBasic, powerShellPath, PS } from '../student/collect.mjs';
 import { createStore, createMemoryStore, openStore, toEntry } from '../student/store.mjs';
 import { demoReadings } from '../student/demo.mjs';
 import { createDashboard } from '../student/server.mjs';
@@ -28,14 +29,18 @@ test('판정: 경계값에서 정상/주의가 갈린다', () => {
 });
 
 test('판정: 읽지 못하면 정상이 아니라 확인 불가', () => {
-  for (const f of [judgeCpu, judgeMemory, judgeDisk, judgeFirewall, judgeDefender, judgeUpdate, judgePorts, judgeStartup]) {
+  for (const f of [judgeCpu, judgeMemory, judgeDisk, judgeFirewall, judgeDefender, judgeUpdate, judgePorts, judgeStartup, judgeNetwork, judgeEventLog]) {
     for (const bad of [undefined, null, {}, { error: '권한이 없어요' }, { pct: NaN, freePct: NaN, days: NaN, count: NaN }]) {
       const r = f(bad);
       assert.equal(r.status, 'unknown', `${f.name}(${JSON.stringify(bad)})`);
-      assert.equal(r.text, '확인 불가');
+      assert.match(r.text, /^확인 불가/);
     }
   }
   assert.match(judgeCpu({ error: '권한이 없어요' }).hint, /권한이 없어요/);
+  assert.equal(judgeCpu({ error: '권한이 없어요' }).text, '확인 불가 · 권한 없음');
+  assert.equal(judgeDisk({ error: 'Access is denied' }).text, '확인 불가 · 권한 없음');
+  assert.equal(judgeDisk({ error: '시간이 너무 오래 걸렸어요' }).text, '확인 불가');
+  assert.equal(judgeDisk({ error: 'x' }).reason, 'x');
 });
 
 test('판정: 방화벽은 모두 켜짐/일부 꺼짐/모두 꺼짐을 구분한다', () => {
@@ -48,12 +53,49 @@ test('판정: 방화벽은 모두 켜짐/일부 꺼짐/모두 꺼짐을 구분�
   assert.equal(judgeFirewall({ profiles: [] }).status, 'unknown');
 });
 
-test('판정: 요약은 항목 8개 기준 "점검 N개 중 M개 정상"', () => {
+test('판정: 요약은 항목 10개 기준 "점검 N개 중 M개 정상"', () => {
   const { items, summary } = judgeAll(demoReadings(0));
-  assert.equal(items.length, 8);
-  assert.equal(summary.total, 8);
-  assert.equal(summary.ok + summary.warn + summary.unknown, 8);
-  assert.match(summary.text, /^점검 8개 중 \d개 정상$/);
+  assert.equal(items.length, 10);
+  assert.equal(summary.total, 10);
+  assert.equal(summary.ok + summary.warn + summary.unknown, 10);
+  assert.match(summary.text, /^점검 10개 중 \d+개 정상$/);
+  for (const i of items) assert.ok(i.source, `${i.id} 출처 표시`);
+});
+
+test('판정: 네트워크 연결과 Windows 경고·오류', () => {
+  assert.equal(judgeNetwork({ connected: true, kinds: ['유선'] }).text, '유선 연결됨');
+  assert.equal(judgeNetwork({ connected: true, kinds: ['유선', '무선'] }).text, '유선·무선 연결됨');
+  assert.match(judgeNetwork({ connected: true, kinds: [] }).text, /종류 알 수 없음/);
+  const off = judgeNetwork({ connected: false, kinds: [] });
+  assert.equal(off.status, 'warn');
+  assert.equal(off.text, '연결 안 됨');
+  const ev = judgeEventLog({ total: 3, capped: false });
+  assert.equal(ev.status, 'ok');
+  assert.match(ev.text, /침해 판정 아님/);
+  assert.equal(judgeEventLog({ total: THRESHOLDS.eventsWarn }).status, 'ok');
+  assert.equal(judgeEventLog({ total: THRESHOLDS.eventsWarn + 1 }).status, 'warn');
+  assert.match(judgeEventLog({ total: 500, capped: true }).text, /500건 이상/);
+});
+
+test('위험 알림: 주의가 생기고 사라진 때를 찾는다 (확인 불가는 상태 변화로 보지 않음)', () => {
+  const mk = (at, cpu, mem) => ({ at, items: [{ id: 'cpu', label: 'CPU', status: cpu, text: `c-${cpu}`, hint: 'h' }, { id: 'memory', label: '메모리', status: mem, text: `m-${mem}`, hint: '' }] });
+  const entries = [mk('t1', 'ok', 'ok'), mk('t2', 'warn', 'ok'), mk('t3', 'unknown', 'ok'), mk('t4', 'warn', 'warn'), mk('t5', 'ok', 'warn')];
+  const a = computeAlerts(entries);
+  assert.deepEqual(a.current.map((c) => c.id), ['memory']);
+  assert.equal(a.current[0].since, 't4');
+  assert.deepEqual(a.events.map((e) => `${e.at}:${e.id}:${e.kind}`), ['t5:cpu:resolved', 't4:memory:start', 't2:cpu:start']);
+  assert.equal(a.checkedAt, 't5');
+  const none = computeAlerts([]);
+  assert.deepEqual(none, { current: [], events: [], checkedAt: null });
+  assert.equal(computeAlerts(entries, { maxEvents: 1 }).events.length, 1);
+});
+
+test('위험 알림: 예제 값으로 시작과 해소가 모두 나온다', () => {
+  const entries = [];
+  for (let n = 0; n < 12; n++) entries.push({ at: `t${n}`, items: judgeAll(demoReadings(n)).items });
+  const a = computeAlerts(entries, { maxEvents: 100 });
+  assert.ok(a.events.some((e) => e.kind === 'start'));
+  assert.ok(a.events.some((e) => e.kind === 'resolved'));
 });
 
 test('예제 값: 6번 안에 정상·주의·확인 불가가 모두 나온다', () => {
@@ -85,6 +127,8 @@ test('수집: Windows 흉내 (가짜 PowerShell 결과)', async () => {
     if (script === PS.update) return '2026-10-20';
     if (script === PS.ports) return '22';
     if (script === PS.startup) throw new Error('접근이 거부되었어요');
+    if (script === PS.network) return '[{"Media":"802.3"}]';
+    if (script === PS.events) return '{"System":2,"Application":1}';
     throw new Error('모르는 명령');
   };
   const r = await collectAll({ platform: 'win32', run, now: new Date(2026, 10, 5) });
@@ -96,7 +140,10 @@ test('수집: Windows 흉내 (가짜 PowerShell 결과)', async () => {
   assert.equal(by.ports.status, 'ok');
   assert.equal(by.startup.status, 'unknown');
   assert.match(by.startup.hint, /접근이 거부/);
-  assert.equal(seen.length, 5);
+  assert.equal(by.startup.text, '확인 불가 · 권한 없음');
+  assert.equal(by.network.text, '유선 연결됨');
+  assert.match(by.eventlog.text, /최근 24시간 3건/);
+  assert.equal(seen.length, 7);
 });
 
 test('수집: 읽기 명령만 쓴다 (설정을 바꾸는 동사 없음)', () => {
@@ -110,7 +157,8 @@ test('수집: Windows가 아니면 Windows 전용 항목은 확인 불가 (명�
   const r = await collectAll({ platform: 'linux', run: async () => { called++; return ''; } });
   assert.equal(called, 0);
   const j = judgeAll(r);
-  for (const id of ['firewall', 'defender', 'update', 'ports', 'startup']) assert.equal(j.items.find((i) => i.id === id).status, 'unknown');
+  for (const id of ['firewall', 'defender', 'update', 'ports', 'startup', 'eventlog']) assert.equal(j.items.find((i) => i.id === id).status, 'unknown');
+  assert.ok(['ok', 'warn'].includes(j.items.find((i) => i.id === 'network').status));
   assert.ok(['ok', 'warn'].includes(j.items.find((i) => i.id === 'cpu').status));
   assert.ok(['ok', 'warn'].includes(j.items.find((i) => i.id === 'disk').status));
 });
@@ -127,7 +175,7 @@ test('기록: 저장·읽기·깨진 줄 건너뛰기·개수 제한', () => {
   assert.ok(s.count() <= 600);
   const e = s.read(1)[0];
   assert.deepEqual(Object.keys(e).sort(), ['at', 'items', 'mode', 'summary']);
-  assert.deepEqual(Object.keys(e.items[0]).sort(), ['hint', 'id', 'label', 'status', 'text', 'value']);
+  assert.deepEqual(Object.keys(e.items[0]).sort(), ['hint', 'id', 'label', 'reason', 'source', 'status', 'text', 'value']);
 });
 
 function call(server, method, p, headers = {}) {
@@ -163,7 +211,7 @@ test('서버(예제 모드): 화면·메타·조회·기록·거부', async () =
     assert.equal(chk.status, 200);
     const entry = JSON.parse(chk.body).entry;
     assert.equal(entry.mode, 'demo');
-    assert.equal(entry.items.length, 8);
+    assert.equal(entry.items.length, 10);
     assert.equal(JSON.parse((await call(app.server, 'GET', '/api/history')).body).entries.length, before + 1);
 
     assert.equal((await call(app.server, 'GET', '/api/check')).status, 405);
@@ -267,7 +315,9 @@ test('서버: --no-save 모드는 파일을 만들지 않고 meta에 memory로 �
   const app = createDashboard({ demo: true, save: false, dataDir: dir });
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
   try {
-    assert.equal(JSON.parse((await call(app.server, 'GET', '/api/meta')).body).storage, 'memory');
+    const meta0 = JSON.parse((await call(app.server, 'GET', '/api/meta')).body);
+    assert.equal(meta0.storage, 'memory');
+    assert.equal(meta0.sdp.state, 'SDP 미연결');
     assert.equal((await call(app.server, 'POST', '/api/check')).status, 200);
     assert.ok(!fs.existsSync(dir));
   } finally {
@@ -275,13 +325,55 @@ test('서버: --no-save 모드는 파일을 만들지 않고 meta에 memory로 �
   }
 });
 
-test('check-once: 한 번 조회해서 8개 항목을 글자로 보여 준다 (기록 파일을 만들지 않음)', async () => {
+test('check-once: 한 번 조회해서 10개 항목을 글자로 보여 준다 (기록 파일을 만들지 않음)', async () => {
   const { execFile } = await import('node:child_process');
   const run = (args) => new Promise((resolve, reject) =>
     execFile(process.execPath, ['student/check-once.mjs', ...args], { timeout: 30000 }, (e, out) => (e ? reject(e) : resolve(out))));
   const text = await run([]);
-  assert.match(text, /점검 8개 중 \d개 정상/);
-  assert.equal((text.match(/^- \[/gm) || []).length, 8);
+  assert.match(text, /점검 10개 중 \d+개 정상/);
+  assert.equal((text.match(/^- \[/gm) || []).length, 10);
   const json = JSON.parse(await run(['--json']));
-  assert.equal(json.items.length, 8);
+  assert.equal(json.items.length, 10);
+});
+
+test('수집 해석: 네트워크·Windows 경고·오류 출력', () => {
+  assert.deepEqual(parseNetwork('{"Media":"802.3"}'), { connected: true, kinds: ['유선'] });
+  assert.deepEqual(parseNetwork('[{"Media":"Native 802.11"},{"Media":"802.3"},{"Media":"802.3"}]'), { connected: true, kinds: ['무선', '유선'] });
+  assert.deepEqual(parseNetwork('[{"Media":"Wireless WAN"}]'), { connected: true, kinds: ['기타'] });
+  assert.deepEqual(parseNetwork('\r\n'), { connected: false, kinds: [] });
+  assert.throws(() => parseNetwork('not json'));
+  assert.deepEqual(parseEvents('{"System":3,"Application":0}'), { system: 3, application: 0, total: 3, capped: false });
+  assert.equal(parseEvents('{"System":500,"Application":2}').capped, true);
+  assert.throws(() => parseEvents('{"System":-1,"Application":2}'));
+  assert.throws(() => parseEvents('{"System":"x","Application":2}'));
+  const basic = readNetworkBasic();
+  assert.equal(typeof basic.connected === 'boolean' || basic.error !== undefined, true);
+  assert.ok(!PS.network.includes('Address') && !PS.network.includes('Mac'), '주소·MAC은 읽지 않음');
+  assert.ok(PS.events.includes('NoMatchingEventsFound'));
+});
+
+test('수집: 네트워크 조회가 막히면 Node 기본 방법으로 대신 읽는다', async () => {
+  const run = async (script) => {
+    if (script === PS.network) throw new Error('이 명령은 허용되지 않아요');
+    return '5';
+  };
+  const r = await collectAll({ platform: 'win32', run });
+  assert.equal(r.network.error, undefined);
+  assert.equal(typeof r.network.connected, 'boolean');
+});
+
+test('서버: /api/alerts가 조회 기록에서 현재 주의와 알림 기록을 돌려준다', async () => {
+  const app = createDashboard({ demo: true, save: false, dataDir: tmp() });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  try {
+    const a = JSON.parse((await call(app.server, 'GET', '/api/alerts')).body);
+    assert.ok(Array.isArray(a.current) && Array.isArray(a.events));
+    assert.ok(a.events.length > 0);
+    assert.equal((await call(app.server, 'GET', '/api/alerts', { Host: 'evil.example' })).status, 403);
+    await call(app.server, 'POST', '/api/check');
+    const b = JSON.parse((await call(app.server, 'GET', '/api/alerts')).body);
+    assert.ok(b.checkedAt >= a.checkedAt);
+  } finally {
+    await new Promise((r) => app.server.close(r));
+  }
 });

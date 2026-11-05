@@ -12,6 +12,7 @@ import { collectAll } from './collect.mjs';
 import { judgeAll } from './judge.mjs';
 import { execFile } from 'node:child_process';
 import { openStore, toEntry } from './store.mjs';
+import { computeAlerts } from './alerts.mjs';
 import { demoReadings } from './demo.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -58,6 +59,7 @@ export function createDashboard({ demo = false, save = true, dataDir = path.join
     connection: '서버 연결 안 함',
     platform: process.platform,
     readOnly: true,
+    sdp: { state: 'SDP 미연결', note: '서버 연결 안 함 (설정하지 않은 기본 상태)' },
     storage, // folder: 프로젝트 폴더, temp: 임시 폴더, memory: 창을 닫으면 사라짐
   });
 
@@ -74,6 +76,9 @@ export function createDashboard({ demo = false, save = true, dataDir = path.join
       if (req.method === 'GET' && url.pathname === '/api/meta') return send(res, 200, meta());
       if (req.method === 'GET' && url.pathname === '/api/history') {
         return send(res, 200, { mode, entries: store.read(url.searchParams.get('limit') || 100) });
+      }
+      if (req.method === 'GET' && url.pathname === '/api/alerts') {
+        return send(res, 200, { mode, ...computeAlerts(store.read(500)) });
       }
       if (url.pathname === '/api/check') {
         if (req.method !== 'POST') return send(res, 405, { error: 'METHOD_NOT_ALLOWED' });
