@@ -78,12 +78,31 @@ export async function readCpu({ wait = 500 } = {}) {
   }
 }
 
-export function readMemory() {
+// Linux의 /proc/meminfo에서 "실제로 쓸 수 있는 메모리"(MemAvailable)를 읽습니다. (os.freemem은 캐시를 빼서 사용률이 부풀려져요)
+export function parseMeminfo(text) {
+  const num = (k) => {
+    const m = new RegExp(`^${k}:\\s+(\\d+)\\s*kB`, 'm').exec(String(text));
+    return m ? Number(m[1]) * 1024 : NaN;
+  };
+  const total = num('MemTotal');
+  const avail = num('MemAvailable');
+  return total > 0 && avail >= 0 && avail <= total ? { total, free: avail } : null;
+}
+
+export function readMemory({ platform = process.platform, meminfo } = {}) {
   try {
-    const total = os.totalmem();
-    const free = os.freemem();
+    let total = os.totalmem();
+    let free = os.freemem();
+    if (platform === 'linux') {
+      try {
+        const m = parseMeminfo(meminfo !== undefined ? meminfo : fs.readFileSync('/proc/meminfo', 'utf8'));
+        if (m) ({ total, free } = m);
+      } catch {
+        // /proc을 읽지 못하면 Node 기본값을 써요.
+      }
+    }
     if (!(total > 0)) return { error: '메모리 크기를 읽지 못했어요' };
-    return { pct: ((total - free) / total) * 100, totalGB: total / 2 ** 30 };
+    return { pct: Math.min(100, Math.max(0, ((total - free) / total) * 100)), totalGB: total / 2 ** 30 };
   } catch (e) {
     return fail(e);
   }
@@ -200,5 +219,5 @@ export async function collectAll({ platform = process.platform, run = runPowerSh
     networkRead(),
     onlyWin(PS.events, parseEvents),
   ]);
-  return { cpu, memory: readMemory(), disk, firewall, defender, update, ports, startup, network, eventlog };
+  return { cpu, memory: readMemory({ platform }), disk, firewall, defender, update, ports, startup, network, eventlog };
 }

@@ -21,12 +21,19 @@ export function createStore(file) {
     }
     return out;
   };
+  // 줄 수를 기억해 두었다가, 한도를 넘을 때만 파일을 다시 읽어 줄입니다. (조회할 때마다 전체를 읽지 않아요)
+  let n = null;
   return {
     file,
     append(entry) {
+      if (n === null) n = readAll().length;
       fs.appendFileSync(file, `${JSON.stringify(entry)}\n`);
-      const all = readAll();
-      if (all.length > KEEP + 100) fs.writeFileSync(file, all.slice(-KEEP).map((e) => `${JSON.stringify(e)}\n`).join(''));
+      n += 1;
+      if (n > KEEP + 100) {
+        const kept = readAll().slice(-KEEP);
+        fs.writeFileSync(file, kept.map((e) => `${JSON.stringify(e)}\n`).join(''));
+        n = kept.length;
+      }
     },
     read(limit = 100) {
       const n = Math.min(Math.max(Number(limit) || 100, 1), KEEP);
@@ -35,6 +42,7 @@ export function createStore(file) {
     count: () => readAll().length,
     clear() {
       fs.writeFileSync(file, '');
+      n = 0;
     },
   };
 }

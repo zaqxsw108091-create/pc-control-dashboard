@@ -13,7 +13,9 @@ export function computeAlerts(entries = [], { maxEvents = 30 } = {}) {
         events.push({ at: e.at, id: i.id, label: i.label, kind: 'start', text: i.text });
         since.set(i.id, e.at);
       } else if (!isWarn && wasWarn) {
-        events.push({ at: e.at, id: i.id, label: i.label, kind: 'resolved', text: i.text });
+        const from = Date.parse(since.get(i.id));
+        const durationMs = Number.isFinite(from) ? Math.max(0, Date.parse(e.at) - from) : null;
+        events.push({ at: e.at, id: i.id, label: i.label, kind: 'resolved', text: i.text, durationMs });
         since.delete(i.id);
       }
       prev.set(i.id, i.status);
