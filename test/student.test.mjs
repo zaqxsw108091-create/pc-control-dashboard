@@ -211,7 +211,7 @@ test('서버(예제 모드): 화면·메타·조회·기록·거부', async () =
     assert.equal(chk.status, 200);
     const entry = JSON.parse(chk.body).entry;
     assert.equal(entry.mode, 'demo');
-    assert.equal(entry.items.length, 10);
+    assert.equal(entry.items.length, 11, '판정 10개 + 기준선 비교 1개');
     assert.equal(JSON.parse((await call(app.server, 'GET', '/api/history')).body).entries.length, before + 1);
 
     assert.equal((await call(app.server, 'GET', '/api/check')).status, 405);

@@ -11,4 +11,4 @@ if errorlevel 1 (
   exit /b 1
 )
 "%NODE%" student\server.mjs --demo --open --no-save
-pause
+if errorlevel 1 pause

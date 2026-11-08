@@ -18,5 +18,14 @@ jobs:
         run: npm test
       - name: 실제 조회 (글자로 한 번, 읽기만 함)
         run: node student/check-once.mjs
-      - name: 실제 조회 JSON
-        run: node student/check-once.mjs --json
+      - name: 실제 PC 값으로 기준선 만들기·비교 (smoke)
+        run: node test/smoke.mjs
+      - name: 바로가기 만들기 → 확인 → 지우기 → 없어졌는지 확인 (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          node student/install.mjs
+          node student/install.mjs --status
+          node student/install.mjs --uninstall
+          set +e; node student/install.mjs --status; code=$?; set -e
+          test "$code" = 1 || { echo "바로가기가 남아 있거나 확인에 실패했어요 (code=$code)"; exit 1; }

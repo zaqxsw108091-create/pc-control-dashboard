@@ -9,13 +9,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectAll } from './collect.mjs';
-import { judgeAll } from './judge.mjs';
+import { judgeAll, summarize } from './judge.mjs';
 import { execFile } from 'node:child_process';
 import { openStore, toEntry } from './store.mjs';
 import { computeAlerts } from './alerts.mjs';
 import { demoReadings } from './demo.mjs';
 import { FIELDS, sanitizeThresholds, createSettingsStore } from './settings.mjs';
 import { THRESHOLDS } from './judge.mjs';
+import { createBaseline, compareBaseline, acceptBaseline, judgeBaseline, createBaselineStore, hasAny } from './baseline.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PORT = 4173;
@@ -41,25 +42,69 @@ export function createDashboard({ demo = false, save = true, dataDir = path.join
   const { store, where: storage } = openStore(dataDir, demo ? 'history.demo.jsonl' : 'history.jsonl', { save });
   // 설정은 기록과 같은 폴더에 저장해요. 예제 모드·저장 안 함·메모리 저장일 때는 파일을 만들지 않아요.
   const settings = createSettingsStore(!demo && store.file ? path.join(path.dirname(store.file), 'settings.json') : null);
+  // 기준선(처음 상태)도 같은 폴더에 저장해요. 예제 모드·저장 안 함일 때는 메모리에만 둬요.
+  const baselines = createBaselineStore(!demo && store.file ? path.join(path.dirname(store.file), 'baseline.json') : null);
+  // 마지막으로 읽은 값과 비교 결과. 프로그램 이름이 들어 있어서 메모리에만 두고 파일에 쓰지 않아요.
+  let live = null;
   let demoStep = store.count();
   let busy = null;
 
+  // 읽은 값 → 판정 10개 + 기준선 비교 1개 → 기록 한 줄
+  function evaluate(readings, at = new Date()) {
+    const result = judgeAll(readings, settings.get());
+    let base = baselines.get();
+    let created = false;
+    if (!base) {
+      const fresh = createBaseline(readings, { at });
+      if (hasAny(fresh)) {
+        baselines.set(fresh);
+        base = fresh;
+        created = true;
+      }
+    }
+    let cmp = null;
+    if (base) {
+      cmp = compareBaseline(base, readings);
+      if (cmp.filled.length) baselines.set(cmp.next);
+    }
+    result.items.push(judgeBaseline(cmp, { created }));
+    result.summary = summarize(result.items);
+    live = { at: at.toISOString(), cmp, readings };
+    return toEntry(result, mode, at);
+  }
+
   // 예제 모드에서 그래프가 비어 보이지 않도록, 처음 한 번만 지난 기록 12개를 예제 값으로 채웁니다.
+  // 기준선은 "깨끗한" 예제 상태로 먼저 저장하고, 마지막 기록에 달라진 것이 보이게 순서를 맞춰요.
   if (demo && store.count() === 0) {
     const now = Date.now();
+    baselines.set(createBaseline(demoReadings(0), { at: new Date(now - 13 * 60000) }));
     for (let k = 0; k < 12; k++) {
-      store.append(toEntry(judgeAll(demoReadings(k)), mode, new Date(now - (12 - k) * 60000)));
+      store.append(evaluate(demoReadings(k + 4), new Date(now - (12 - k) * 60000)));
     }
-    demoStep = 12;
+    demoStep = 16;
   }
 
   async function check() {
     const readings = demo ? demoReadings(demoStep++) : await collect();
-    const result = judgeAll(readings, settings.get());
-    const entry = toEntry(result, mode);
+    const entry = evaluate(readings);
     store.append(entry);
     return entry;
   }
+
+  const baselineView = () => {
+    const b = baselines.get();
+    return {
+      mode,
+      exists: Boolean(b),
+      createdAt: b ? b.createdAt : null,
+      persisted: Boolean(baselines.file),
+      checkedAt: live ? live.at : null,
+      ports: b && Array.isArray(b.ports) ? b.ports : null,
+      startupCount: b && Array.isArray(b.startup) ? b.startup.length : null,
+      changes: live && live.cmp ? live.cmp.changes : [],
+      skipped: live && live.cmp ? live.cmp.skipped : [],
+    };
+  };
 
   const meta = () => ({
     mode,
@@ -114,7 +159,32 @@ export function createDashboard({ demo = false, save = true, dataDir = path.join
         return send(res, 200, fs.readFileSync(path.join(HERE, 'public', 'index.html')), 'text/html; charset=utf-8');
       }
       if (req.method === 'GET' && url.pathname === '/api/meta') return send(res, 200, meta());
-      if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, version: VERSION, mode });
+      if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, app: 'pc-control-dashboard', version: VERSION, mode, saving: storage !== 'memory' });
+      if (url.pathname === '/api/baseline') {
+        if (req.method === 'GET') return send(res, 200, baselineView());
+        if (!guardPost(req, res)) return;
+        let body;
+        try {
+          body = await readJson(req);
+        } catch (e) {
+          return send(res, e.code || 400, { error: e.message });
+        }
+        const action = body && body.action;
+        if (action === 'accept') {
+          if (!live) return send(res, 409, { error: 'NO_READING', message: '먼저 "다시 조회"를 눌러 지금 상태를 읽어 주세요' });
+          const next = acceptBaseline(baselines.get(), live.readings);
+          if (!hasAny(next)) return send(res, 409, { error: 'NOTHING_TO_SAVE', message: '비교할 항목을 읽지 못해 기준선을 저장할 수 없어요' });
+          baselines.set(next);
+          live = { ...live, cmp: compareBaseline(next, live.readings) };
+          return send(res, 200, baselineView());
+        }
+        if (action === 'reset') {
+          baselines.clear();
+          live = null;
+          return send(res, 200, baselineView());
+        }
+        return send(res, 422, { error: 'INVALID_ACTION', message: 'action은 accept 또는 reset이어야 해요' });
+      }
       if (url.pathname === '/api/settings') {
         if (req.method === 'GET') return send(res, 200, settingsView());
         if (!guardPost(req, res)) return;
@@ -148,7 +218,8 @@ export function createDashboard({ demo = false, save = true, dataDir = path.join
         busy ||= check().finally(() => {
           busy = null;
         });
-        return send(res, 200, { mode, entry: await busy });
+        const entry = await busy;
+        return send(res, 200, { mode, entry, baseline: baselineView() });
       }
       return send(res, 404, { error: 'NOT_FOUND' });
     } catch (e) {
@@ -156,7 +227,7 @@ export function createDashboard({ demo = false, save = true, dataDir = path.join
     }
   };
 
-  return { server: http.createServer(handler), store, meta };
+  return { server: http.createServer(handler), store, meta, baselines };
 }
 
 function parseArgs(argv) {
@@ -170,6 +241,21 @@ function parseArgs(argv) {
     else if (a === '--port') { opts.port = Number(argv[++i]); opts.explicitPort = true; }
   }
   return opts;
+}
+
+// 같은 모드로 이미 켜져 있는 대시보드를 찾습니다. (아이콘을 두 번 눌러도 두 개가 켜지지 않게)
+export async function findRunning({ from = DEFAULT_PORT, count = 10, mode = 'real', saving = true, timeout = 700 } = {}) {
+  for (let p = from; p < from + count && p <= 65535; p++) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${p}/api/health`, { signal: AbortSignal.timeout(timeout) });
+      if (!r.ok) continue;
+      const h = await r.json();
+      if (h && h.app === 'pc-control-dashboard' && h.mode === mode && h.saving === saving) return `http://127.0.0.1:${p}`;
+    } catch {
+      // 비어 있거나 다른 프로그램이 쓰는 번호예요.
+    }
+  }
+  return null;
 }
 
 function openBrowser(url) {
@@ -205,6 +291,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     console.error('포트 번호는 1~65535 사이 숫자여야 해요. 예: --port=4200');
     process.exit(1);
+  }
+  if (!explicitPort) {
+    const running = await findRunning({ from: port, mode: demo ? 'demo' : 'real', saving: save });
+    if (running) {
+      console.log(`이미 켜져 있어요: ${running}`);
+      console.log('새로 켜지 않고 브라우저만 열었어요. 이 창은 닫아도 돼요.');
+      if (open) openBrowser(running);
+      process.exit(0);
+    }
   }
   const { server, meta } = createDashboard({ demo, save });
   try {

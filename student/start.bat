@@ -17,4 +17,4 @@ if errorlevel 1 (
   exit /b 1
 )
 "%NODE%" student\server.mjs --open %*
-pause
+if errorlevel 1 pause

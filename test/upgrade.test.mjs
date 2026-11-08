@@ -157,7 +157,7 @@ test('서버: /api/health, meta 버전, 보안 헤더', async () => {
   assert.equal(JSON.parse(fs.readFileSync('package.json', 'utf8')).version, VERSION);
   await withApp({ demo: true, dataDir: tmp() }, async ({ server }) => {
     const h = await call(server, 'GET', '/api/health');
-    assert.deepEqual(JSON.parse(h.body), { ok: true, version: VERSION, mode: 'demo' });
+    assert.deepEqual(JSON.parse(h.body), { ok: true, app: 'pc-control-dashboard', version: VERSION, mode: 'demo', saving: true });
     assert.equal(JSON.parse((await call(server, 'GET', '/api/meta')).body).version, VERSION);
     const page = await call(server, 'GET', '/');
     assert.match(page.headers['content-security-policy'], /frame-ancestors 'none'/);
