@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { createDashboard } from '../student/server.mjs';
+import { runPowerShell } from '../student/collect.mjs';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pcd-smoke-'));
 const app = createDashboard({ dataDir: dir });
@@ -23,6 +24,10 @@ try {
 
   assert.equal(second.entry.items.length, 11);
   if (process.platform === 'win32') {
+    // 한글 프로그램 이름·오류 문구가 깨지지 않고 돌아오는지
+    const ko = (await runPowerShell("Write-Output '한글 확인 · 메신저'")).trim();
+    console.log(`PowerShell 한글 왕복: ${ko}`);
+    assert.equal(ko, '한글 확인 · 메신저');
     assert.equal(first.baseline.exists, true, 'Windows에서는 기준선이 만들어져야 해요');
     assert.match(item(first.entry).text, /기준선으로 저장/);
     assert.notEqual(item(second.entry).status, 'unknown');

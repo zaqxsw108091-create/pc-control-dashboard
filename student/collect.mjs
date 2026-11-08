@@ -38,9 +38,12 @@ export function powerShellPath(platform = process.platform) {
   return fs.existsSync(full) ? full : 'powershell.exe';
 }
 
+export const UTF8_OUT = '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ';
+
 export function runPowerShell(script, { env } = {}) {
   // 따옴표 문제를 피하려고 명령을 인코딩해서 넘깁니다(실행 정책 설정은 바꾸지 않아요).
-  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  // Windows PowerShell 5.1은 결과를 옛 코드페이지로 내보내서 한글(프로그램 이름·오류 문구)이 깨지므로, 이 실행에서만 출력을 UTF-8로 맞춥니다.
+  const encoded = Buffer.from(`${UTF8_OUT}${script}`, 'utf16le').toString('base64');
   return new Promise((resolve, reject) => {
     execFile(
       powerShellPath(),

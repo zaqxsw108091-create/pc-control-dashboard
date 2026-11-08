@@ -15,9 +15,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const SHORTCUT_NAME = '내 PC 관제 대시보드';
 
 // PowerShell 명령. 경로는 명령 글자에 섞지 않고 환경 변수로 넘겨서, 폴더 이름에 따옴표·특수문자가 있어도 안전해요.
+// WScript.Shell 바로가기 기능은 시스템 언어 밖의 글자(예: 영어 Windows의 한글)를 파일 이름에 못 쓰므로,
+// 영문 임시 이름으로 저장한 뒤 한글 이름으로 바꿔요. (Windows CI에서 실제로 확인한 문제)
 export const PS_INSTALL = {
   create:
-    "$ws = New-Object -ComObject WScript.Shell; $made = @(); foreach ($dir in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) { if (-not $dir) { continue }; $lnk = Join-Path $dir ($env:PCD_NAME + '.lnk'); $s = $ws.CreateShortcut($lnk); $s.TargetPath = $env:PCD_TARGET; $s.WorkingDirectory = $env:PCD_WORKDIR; $s.WindowStyle = 7; $s.Description = '내 PC 상태를 읽어서 보여 주는 점검 대시보드 (읽기 전용)'; $s.IconLocation = ($env:SystemRoot + '\\System32\\shell32.dll,15'); $s.Save(); $made += $lnk }; $made -join [Environment]::NewLine",
+    "$ws = New-Object -ComObject WScript.Shell; $made = @(); foreach ($dir in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) { if (-not $dir) { continue }; $lnk = Join-Path $dir ($env:PCD_NAME + '.lnk'); $tmp = Join-Path $dir ('pcd-' + [guid]::NewGuid().ToString('N') + '.lnk'); $s = $ws.CreateShortcut($tmp); $s.TargetPath = $env:PCD_TARGET; $s.WorkingDirectory = $env:PCD_WORKDIR; $s.WindowStyle = 7; $s.Description = 'PC Control Dashboard (read-only)'; $s.IconLocation = ($env:SystemRoot + '\\System32\\shell32.dll,15'); $s.Save(); Move-Item -LiteralPath $tmp -Destination $lnk -Force; $made += $lnk }; $made -join [Environment]::NewLine",
   remove:
     "$gone = @(); foreach ($dir in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) { if (-not $dir) { continue }; $lnk = Join-Path $dir ($env:PCD_NAME + '.lnk'); if (Test-Path -LiteralPath $lnk) { Remove-Item -LiteralPath $lnk -Force; $gone += $lnk } }; $gone -join [Environment]::NewLine",
   status:
