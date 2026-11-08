@@ -17,9 +17,12 @@ export const PS = {
   defender: '$s = Get-MpComputerStatus -ErrorAction Stop; [pscustomobject]@{ RealTime=[bool]$s.RealTimeProtectionEnabled } | ConvertTo-Json -Compress',
   update:
     "$h = Get-HotFix | Where-Object { $_.InstalledOn } | Sort-Object InstalledOn -Descending | Select-Object -First 1; if ($h) { $h.InstalledOn.ToString('yyyy-MM-dd') } else { 'none' }",
+  // 바깥 접속을 기다리는 포트 번호와, 그 포트를 연 프로그램 이름(화면 표시용, 파일에는 저장하지 않음)을 읽습니다.
   ports:
-    "(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object { $_.LocalAddress -notin '127.0.0.1','::1' } | Measure-Object).Count",
-  startup: '(Get-CimInstance Win32_StartupCommand -ErrorAction Stop | Measure-Object).Count',
+    "$c = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object { $_.LocalAddress -notin '127.0.0.1','::1' }); $names = @{}; $list = @($c | Sort-Object LocalPort -Unique | ForEach-Object { $id = [int]$_.OwningProcess; if (-not $names.ContainsKey($id)) { $names[$id] = [string](Get-Process -Id $id -ErrorAction SilentlyContinue).ProcessName }; [pscustomobject]@{ Port = [int]$_.LocalPort; Proc = $names[$id] } }); [pscustomobject]@{ Count = $c.Count; Ports = $list } | ConvertTo-Json -Compress -Depth 3",
+  // 시작프로그램 이름(화면 표시용). 파일에는 이름 대신 알아볼 수 없는 지문(해시)만 저장합니다.
+  startup:
+    "$s = @(Get-CimInstance Win32_StartupCommand -ErrorAction Stop | ForEach-Object { [string]$_.Name }); [pscustomobject]@{ Count = $s.Count; Names = $s } | ConvertTo-Json -Compress",
   // 연결된(Up) 실제 어댑터의 종류만 읽습니다. 주소(IP)·MAC·이름은 읽지 않아요.
   network:
     "Get-NetAdapter -ErrorAction Stop | Where-Object { $_.Status -eq 'Up' -and -not $_.Virtual } | ForEach-Object { [pscustomobject]@{ Media=[string]$_.MediaType } } | ConvertTo-Json -Compress",
@@ -35,14 +38,14 @@ export function powerShellPath(platform = process.platform) {
   return fs.existsSync(full) ? full : 'powershell.exe';
 }
 
-export function runPowerShell(script) {
+export function runPowerShell(script, { env } = {}) {
   // 따옴표 문제를 피하려고 명령을 인코딩해서 넘깁니다(실행 정책 설정은 바꾸지 않아요).
   const encoded = Buffer.from(script, 'utf16le').toString('base64');
   return new Promise((resolve, reject) => {
     execFile(
       powerShellPath(),
       ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
-      { timeout: 20000, windowsHide: true, maxBuffer: 1024 * 1024 },
+      { timeout: 20000, windowsHide: true, maxBuffer: 1024 * 1024, ...(env ? { env: { ...process.env, ...env } } : {}) },
       (err, stdout, stderr) => {
         if (err) {
           const msg = String(stderr || err.message || '').trim().split('\n')[0].slice(0, 120);
@@ -152,6 +155,45 @@ export function parseCount(out, what) {
   return { count: Number(s) };
 }
 
+// 포트: 새 모양(JSON: 개수 + 포트 목록)과 옛 모양(숫자 하나)을 모두 받아요.
+export function parsePorts(out) {
+  const s = String(out).trim();
+  if (/^\d+$/.test(s)) return { count: Number(s) };
+  let d;
+  try {
+    d = JSON.parse(s);
+  } catch {
+    throw new Error('포트 개수를 해석하지 못했어요');
+  }
+  if (!d || !Number.isInteger(d.Count) || d.Count < 0) throw new Error('포트 개수를 해석하지 못했어요');
+  const raw = Array.isArray(d.Ports) ? d.Ports : d.Ports ? [d.Ports] : [];
+  const seen = new Set();
+  const ports = [];
+  for (const p of raw) {
+    if (!p || !Number.isInteger(p.Port) || p.Port < 1 || p.Port > 65535 || seen.has(p.Port)) continue;
+    seen.add(p.Port);
+    ports.push({ port: p.Port, proc: typeof p.Proc === 'string' ? p.Proc.slice(0, 80) : '' });
+  }
+  ports.sort((a, b) => a.port - b.port);
+  return { count: d.Count, ports };
+}
+
+// 시작프로그램: 새 모양(JSON: 개수 + 이름 목록)과 옛 모양(숫자 하나)을 모두 받아요.
+export function parseStartup(out) {
+  const s = String(out).trim();
+  if (/^\d+$/.test(s)) return { count: Number(s) };
+  let d;
+  try {
+    d = JSON.parse(s);
+  } catch {
+    throw new Error('시작프로그램 개수를 해석하지 못했어요');
+  }
+  if (!d || !Number.isInteger(d.Count) || d.Count < 0) throw new Error('시작프로그램 개수를 해석하지 못했어요');
+  const raw = Array.isArray(d.Names) ? d.Names : typeof d.Names === 'string' ? [d.Names] : [];
+  const names = [...new Set(raw.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim().slice(0, 120)))];
+  return { count: d.Count, names };
+}
+
 export function parseNetwork(out) {
   const text = String(out).trim();
   if (text === '') return { connected: false, kinds: [] };
@@ -214,8 +256,8 @@ export async function collectAll({ platform = process.platform, run = runPowerSh
     firewallRead(),
     onlyWin(PS.defender, parseDefender),
     onlyWin(PS.update, (o) => parseUpdate(o, now)),
-    onlyWin(PS.ports, (o) => parseCount(o, '포트')),
-    onlyWin(PS.startup, (o) => parseCount(o, '시작프로그램')),
+    onlyWin(PS.ports, parsePorts),
+    onlyWin(PS.startup, parseStartup),
     networkRead(),
     onlyWin(PS.events, parseEvents),
   ]);
