@@ -1,6 +1,6 @@
 {
   "name": "pc-control-dashboard",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "내 Windows PC의 상태(CPU·메모리·디스크·방화벽 등)를 읽어서 보여 주는 읽기 전용 점검 대시보드",
   "private": true,
   "type": "module",

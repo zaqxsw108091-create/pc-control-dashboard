@@ -20,7 +20,7 @@ export const LINK_IDS = ['network', 'firewall', 'eventlog'];
 // 값을 어디서 읽었는지 화면에 보여 주기 위한 출처 표시
 export const SOURCES = {
   cpu: 'Node 기본 기능(os.cpus), 0.5초 간격 비교',
-  memory: 'Node 기본 기능(os.totalmem·freemem), Linux는 /proc/meminfo',
+  memory: 'Node 기본 기능(os.totalmem·freemem)',
   disk: 'Node 기본 기능(fs.statfs), 시스템 드라이브',
   firewall: 'PowerShell Get-NetFirewallProfile (막히면 레지스트리 읽기)',
   defender: 'PowerShell Get-MpComputerStatus',
@@ -59,10 +59,13 @@ export function judgeCpu(r, t = THRESHOLDS) {
 export function judgeMemory(r, t = THRESHOLDS) {
   if (bad(r) || !Number.isFinite(r.pct)) return unknown('memory', '메모리', r);
   const warn = r.pct >= t.memWarn;
-  return item('memory', '메모리', warn ? STATUS.WARN : STATUS.OK, `사용률 ${pct(r.pct)}`, {
+  const out = item('memory', '메모리', warn ? STATUS.WARN : STATUS.OK, `사용률 ${pct(r.pct)}`, {
     value: r.pct,
     hint: warn ? '작업 공간이 많이 찼어요. 안 쓰는 프로그램을 닫아 보세요.' : '',
   });
+  // Linux에서 /proc/meminfo로 읽었을 때만 출처에 적어요. (Windows 화면에 Linux 문구가 보이지 않게)
+  if (r.via === 'meminfo') out.source = 'Linux /proc/meminfo (MemAvailable)';
+  return out;
 }
 
 export function judgeDisk(r, t = THRESHOLDS) {
