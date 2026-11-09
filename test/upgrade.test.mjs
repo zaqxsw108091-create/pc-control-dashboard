@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import { judgeAll, judgeCpu, THRESHOLDS } from '../student/judge.mjs';
+import { judgeAll, judgeCpu, judgeMemory, THRESHOLDS } from '../student/judge.mjs';
 import { FIELDS, sanitizeThresholds, createSettingsStore } from '../student/settings.mjs';
 import { parseMeminfo, readMemory } from '../student/collect.mjs';
 import { createStore } from '../student/store.mjs';
@@ -178,6 +178,11 @@ test('메모리: /proc/meminfo에서 쓸 수 있는 메모리(MemAvailable)로 �
   assert.ok(fallback.pct >= 0 && fallback.pct <= 100, 'meminfo가 이상하면 Node 기본값으로');
   const win = readMemory({ platform: 'win32' });
   assert.ok(win.pct >= 0 && win.pct <= 100 && win.totalGB > 0);
+  assert.equal(win.via, 'os');
+  assert.equal(readMemory({ platform: 'linux', meminfo: sample }).via, 'meminfo');
+  // Windows 화면의 출처에는 Linux 문구가 나오지 않는다 (실제 Windows PC 화면에서 발견)
+  assert.doesNotMatch(judgeMemory(win).source, /Linux|meminfo/);
+  assert.match(judgeMemory({ pct: 50, via: 'meminfo' }).source, /\/proc\/meminfo/);
 });
 
 test('기록 저장소: 한도를 넘으면 최근 500건만 남기고, 줄 수를 기억해도 지운 뒤 다시 센다', () => {

@@ -99,16 +99,20 @@ export function readMemory({ platform = process.platform, meminfo } = {}) {
   try {
     let total = os.totalmem();
     let free = os.freemem();
+    let via = 'os';
     if (platform === 'linux') {
       try {
         const m = parseMeminfo(meminfo !== undefined ? meminfo : fs.readFileSync('/proc/meminfo', 'utf8'));
-        if (m) ({ total, free } = m);
+        if (m) {
+          ({ total, free } = m);
+          via = 'meminfo';
+        }
       } catch {
         // /proc을 읽지 못하면 Node 기본값을 써요.
       }
     }
     if (!(total > 0)) return { error: '메모리 크기를 읽지 못했어요' };
-    return { pct: Math.min(100, Math.max(0, ((total - free) / total) * 100)), totalGB: total / 2 ** 30 };
+    return { pct: Math.min(100, Math.max(0, ((total - free) / total) * 100)), totalGB: total / 2 ** 30, via };
   } catch (e) {
     return fail(e);
   }
